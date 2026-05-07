@@ -1,0 +1,267 @@
+/* src/app/features/superadmin/sa-dashboard/sa-dashboard.component.css */
+
+/* ── Page shell ───────────────────────────────────────────────────────────── */
+.sa-page {
+  padding: 20px 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  /* Bottom padding prevents mobile nav bar from hiding last content */
+  padding-bottom: 100px;
+}
+
+/* Section dividers */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 12px;
+}
+/* .section-label + * { first child after label already has margin; avoid double gap } */
+
+/* ── Shared header ────────────────────────────────────────────────────────── */
+.sa-page-header  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.sa-page-title   { font-size: 20px; font-weight: 700; color: #111827; margin: 0 0 4px; }
+.sa-title-icon   { color: var(--app-primary, #0057FF); margin-right: 8px; }
+.sa-page-sub     { color: #6b7280; font-size: 13px; margin: 0; }
+.sa-refresh-btn  { display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+                   background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px;
+                   font-size: 13px; cursor: pointer; color: #374151; white-space: nowrap; }
+.sa-refresh-btn:hover { background: #e5e7eb; }
+
+/* ── Loading / Error ──────────────────────────────────────────────────────── */
+.sa-loading { display: flex; align-items: center; gap: 10px; padding: 40px;
+              justify-content: center; color: #6b7280; }
+.sa-error   { padding: 14px 16px; background: #fef2f2; border: 1px solid #fecaca;
+              border-radius: 10px; color: #dc2626; display: flex; gap: 8px; margin-bottom: 16px; }
+.spin       { width: 24px; height: 24px; border: 3px solid #e5e7eb;
+              border-top-color: var(--app-primary, #0057FF);
+              border-radius: 50%; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SHOP KPI CARDS
+   ════════════════════════════════════════════════════════════════════════════ */
+.sa-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 700px) { .sa-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.sa-kpi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+.sa-kpi-icon { width: 44px; height: 44px; border-radius: 12px; display: flex;
+               align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0; }
+.sa-kpi-val  { font-size: 24px; font-weight: 700; color: #111827; line-height: 1; }
+.sa-kpi-lbl  { font-size: 12px; color: #6b7280; margin-top: 3px; }
+
+.sa-kpi-blue  .sa-kpi-icon { background: #eff6ff; color: #2563eb; }
+.sa-kpi-green .sa-kpi-icon { background: #f0fdf4; color: #16a34a; }
+.sa-kpi-amber .sa-kpi-icon { background: #fffbeb; color: #d97706; }
+.sa-kpi-red   .sa-kpi-icon { background: #fef2f2; color: #dc2626; }
+
+/* ── Plan distribution ────────────────────────────────────────────────────── */
+.sa-plan-card  { background: #fff; border-radius: 14px; padding: 18px 20px;
+                 box-shadow: 0 1px 4px rgba(0,0,0,.07); margin-bottom: 24px; }
+.sa-plan-title { font-weight: 600; font-size: 14px; color: #111827; margin-bottom: 14px; }
+.sa-plan-row   { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sa-plan-name  { width: 46px; font-size: 11.5px; font-weight: 600; text-align: center;
+                 padding: 2px 5px; border-radius: 5px; }
+.sa-plan-bar-wrap { flex: 1; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+.sa-plan-bar   { height: 100%; border-radius: 4px; transition: width .4s; }
+.sa-bar-free   { background: #9ca3af; }
+.sa-bar-basic  { background: #3b82f6; }
+.sa-bar-pro    { background: #7c3aed; }
+.sa-plan-count { width: 26px; text-align: right; font-size: 13px; font-weight: 600; color: #374151; }
+.sa-plan-pct   { width: 34px; text-align: right; font-size: 12px; color: #6b7280; }
+
+.plan-free  { background: #f3f4f6; color: #374151; }
+.plan-basic { background: #dbeafe; color: #1d4ed8; }
+.plan-pro   { background: #ede9fe; color: #6d28d9; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   REVENUE KPI CARDS
+   ════════════════════════════════════════════════════════════════════════════ */
+.rv-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 900px) { .rv-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .rv-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.rv-kpi {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+}
+.rv-kpi-icon { width: 44px; height: 44px; border-radius: 12px; display: flex;
+               align-items: center; justify-content: center; font-size: 19px;
+               flex-shrink: 0; margin-top: 2px; }
+.rv-kpi-body { flex: 1; min-width: 0; }
+.rv-kpi-lbl  { font-size: 11.5px; color: #6b7280; font-weight: 500; margin-bottom: 3px; }
+.rv-kpi-val  { font-size: 20px; font-weight: 700; color: #111827; line-height: 1.1; }
+.rv-kpi-sub  { font-size: 11px; color: #9ca3af; margin-top: 4px;
+               display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+
+.mom-up   { color: #16a34a !important; }
+.mom-down { color: #dc2626 !important; }
+.mom-flat { color: #9ca3af !important; }
+
+.rv-kpi-blue   .rv-kpi-icon { background: #eff6ff; color: #2563eb; }
+.rv-kpi-green  .rv-kpi-icon { background: #f0fdf4; color: #16a34a; }
+.rv-kpi-amber  .rv-kpi-icon { background: #fffbeb; color: #d97706; }
+.rv-kpi-purple .rv-kpi-icon { background: #ede9fe; color: #7c3aed; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CHARTS ROW
+   KEY FIX: NO overflow: hidden, NO fixed width — stacks vertically on mobile
+   ════════════════════════════════════════════════════════════════════════════ */
+.rv-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 320px;  /* side-by-side on desktop */
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Stack vertically on tablets and mobile — NO horizontal scroll */
+@media (max-width: 860px) {
+  .rv-charts-row {
+    grid-template-columns: 1fr;      /* full width stack */
+  }
+}
+
+.rv-chart-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  /* Prevent card from ever overflowing its column */
+  min-width: 0;
+  overflow: hidden;
+}
+.rv-chart-hdr  { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.rv-chart-title { font-weight: 700; font-size: 14px; color: #111827; }
+.rv-chart-sub   { font-size: 11.5px; color: #9ca3af; }
+
+/* Bar canvas wrapper — fixed height, full width */
+.rv-bar-wrap {
+  position: relative;
+  width: 100%;
+  height: 200px;   /* explicit height required for Chart.js responsive mode */
+}
+.rv-bar-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Donut canvas wrapper */
+.rv-donut-wrap {
+  position: relative;
+  width: 100%;
+  height: 170px;
+  margin-bottom: 14px;
+}
+.rv-donut-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Legend */
+.rv-donut-legend  { display: flex; flex-direction: column; gap: 7px; }
+.rv-legend-item   { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.rv-legend-dot    { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+.rv-legend-name   { flex: 1; }
+.rv-legend-pct    { color: #6b7280; font-size: 11.5px; min-width: 32px; text-align: right; }
+.rv-legend-amt    { font-weight: 600; color: #111827; min-width: 74px; text-align: right; font-size: 12.5px; }
+
+/* Plan badge (shared) */
+.ssc-plan   { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RECENT PAYMENTS
+   ════════════════════════════════════════════════════════════════════════════ */
+.rv-recent-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  margin-bottom: 16px;
+}
+
+.rv-payment-list { display: flex; flex-direction: column; }
+
+.rv-payment-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.rv-payment-row:last-child { border-bottom: none; }
+
+.rv-pay-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  background: #f3f4f6; display: flex; align-items: center;
+  justify-content: center; font-size: 15px; color: #6b7280; flex-shrink: 0;
+}
+.rv-pay-info     { flex: 1; min-width: 0; }
+.rv-pay-name     { font-weight: 600; font-size: 13px; color: #111827;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-pay-owner    { font-size: 11.5px; color: #9ca3af; }
+.rv-pay-meta     { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.rv-pay-duration { font-size: 11px; color: #9ca3af; }
+.rv-pay-amount   { text-align: right; flex-shrink: 0; }
+.rv-pay-amtval   { font-size: 13.5px; font-weight: 700; color: #111827; }
+.rv-pay-date     { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+
+/* ── Empty states ─────────────────────────────────────────────────────────── */
+
+/*
+  CRITICAL: [hidden] sets display:none but display:flex in CSS overrides it.
+  This !important guarantees [hidden] always wins regardless of other rules.
+*/
+[hidden] { display: none !important; }
+
+.rv-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  gap: 7px;
+  color: #9ca3af;
+  text-align: center;
+}
+.rv-chart-empty i    { font-size: 32px; }
+.rv-chart-empty p    { font-size: 13.5px; font-weight: 600; color: #6b7280; margin: 0; }
+.rv-chart-empty span { font-size: 12px; color: #9ca3af; max-width: 200px; }
+
+/* ── Quick link ───────────────────────────────────────────────────────────── */
+.sa-quick-link { display: flex; justify-content: flex-end; margin-top: 8px; }
+.sa-ql-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px;
+  background: var(--app-primary, #0057FF); color: #fff;
+  border-radius: 10px; font-size: 14px; font-weight: 600;
+  text-decoration: none; transition: opacity .2s;
+}
+.sa-ql-btn:hover { opacity: .88; }

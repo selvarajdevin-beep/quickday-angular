@@ -1,0 +1,965 @@
+<div class="billing-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">
+        <i class="bi bi-receipt-cutoff ph-icon"></i> Billing
+        <span class="shop-badge" *ngIf="isBakery()"><i class="bi bi-egg-fried"></i> Bakery POS</span>
+      </h2>
+      <p class="page-subtitle">{{ isBakery() ? 'Quick POS billing — tap products to add to cart' : 'Create and manage sales orders' }}</p>
+    </div>
+  </div>
+
+  <!-- Today Summary -->
+  <div class="today-strip">
+    <div class="ts-card">
+      <div class="ts-icon ts-blue"><i class="bi bi-graph-up-arrow"></i></div>
+      <div><div class="ts-lbl">Today Sales</div><div class="ts-val">₹{{ todaySummary().todaySales | number }}</div></div>
+    </div>
+    <div class="ts-card">
+      <div class="ts-icon ts-green"><i class="bi bi-bag-check-fill"></i></div>
+      <div><div class="ts-lbl">Orders</div><div class="ts-val">{{ todaySummary().todayOrders }}</div></div>
+    </div>
+    <div class="ts-card">
+      <div class="ts-icon ts-cash"><i class="bi bi-cash-stack"></i></div>
+      <div><div class="ts-lbl">Cash</div><div class="ts-val">₹{{ todaySummary().cashAmount | number }}</div></div>
+    </div>
+    <div class="ts-card">
+      <div class="ts-icon ts-upi"><i class="bi bi-phone-fill"></i></div>
+      <div><div class="ts-lbl">UPI</div><div class="ts-val">₹{{ todaySummary().upiAmount | number }}</div></div>
+    </div>
+    <div class="ts-card">
+      <div class="ts-icon ts-red"><i class="bi bi-clock-history"></i></div>
+      <div><div class="ts-lbl">Credit Given</div><div class="ts-val">₹{{ todaySummary().creditAmount | number }}</div></div>
+    </div>
+  </div>
+
+  <!-- View Tabs -->
+  <div class="view-tabs">
+    <button [class.vt-active]="activeView()==='new-bill'" (click)="activeView.set('new-bill'); editingOrder.set(null)">
+      <i class="bi" [class.bi-grid-fill]="isBakery()" [class.bi-receipt-cutoff]="!isBakery()"></i>
+      <span class="tab-label">{{ isBakery() ? (editingOrder() ? 'Edit Order #' + editingOrder()!.id : 'POS Billing') : (editingOrder() ? 'Edit Order #' + editingOrder()!.id : 'New Bill') }}</span>
+    </button>
+    <button [class.vt-active]="activeView()==='all-orders'" (click)="activeView.set('all-orders')">
+      <i class="bi bi-list-ul"></i>
+      <span class="tab-label">All Orders</span>
+      <span class="vt-badge">{{ allOrders().length }}</span>
+    </button>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       BAKERY POS LAYOUT
+  ═══════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeView()==='new-bill' && isBakery()">
+
+    <div class="edit-banner" *ngIf="editingOrder()">
+      <i class="bi bi-pencil-square"></i>
+      Editing Order <strong>#{{ editingOrder()!.id }}</strong> — make changes and click Update Order
+      <button class="edit-cancel-btn" (click)="cancelEdit()"><i class="bi bi-x-lg"></i> <span class="btn-txt">Cancel Edit</span></button>
+    </div>
+
+    <div class="bakery-pos-layout">
+
+      <!-- LEFT: Product grid -->
+      <div class="pos-products-panel">
+        <div class="pos-search-row">
+          <div class="pos-search-box">
+            <i class="bi bi-search"></i>
+            <input type="text" placeholder="Search products…"
+              [ngModel]="bakeryProductSearch()"
+              (ngModelChange)="bakeryProductSearch.set($event)" />
+            <button class="pos-search-clear" *ngIf="bakeryProductSearch()" (click)="bakeryProductSearch.set('')">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="pos-cat-tabs">
+          <button
+            *ngFor="let cat of bakeryCategories; trackBy: trackByString"
+            class="pos-cat-btn"
+            [class.pos-cat-active]="bakeryCategory()===cat"
+            (click)="bakeryCategory.set(cat)">
+            <i class="bi" [ngClass]="getCategoryIcon(cat)"></i>
+            {{ cat }}
+          </button>
+        </div>
+
+        <div class="pos-grid" *ngIf="bakeryFilteredProducts().length > 0; else noProducts">
+          <div
+            class="pos-product-card"
+            *ngFor="let p of bakeryFilteredProducts(); trackBy: trackByProduct"
+            [class.pos-card-in-cart]="cartQty(p.id) > 0"
+            (click)="bakeryTapProduct(p)">
+            <div class="pos-card-stripe" [attr.data-cat]="p.category"></div>
+            <div class="pos-card-body">
+              <div class="pos-card-name">{{ p.name }}</div>
+              <div class="pos-card-meta">
+                <span class="pos-card-cat-tag">{{ p.category }}</span>
+                <span class="pos-card-stock" [class.low-stock]="p.currentStock <= p.minStockAlert">
+                  <i class="bi bi-box-seam"></i> {{ p.currentStock }}
+                </span>
+              </div>
+              <div class="pos-card-price">₹{{ p.sellingPrice }}</div>
+            </div>
+            <div class="pos-qty-badge" *ngIf="cartQty(p.id) > 0">
+              <button class="pos-qty-dec" (click)="$event.stopPropagation(); bakeryDecrement(p.id)">
+                <i class="bi bi-dash"></i>
+              </button>
+              <span>{{ cartQty(p.id) }}</span>
+              <i class="bi bi-plus pos-qty-inc"></i>
+            </div>
+            <div class="pos-add-hint" *ngIf="cartQty(p.id) === 0">
+              <i class="bi bi-plus-circle-fill"></i>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #noProducts>
+          <div class="pos-empty-products">
+            <i class="bi bi-search"></i>
+            <span>No products found</span>
+            <button (click)="bakeryProductSearch.set(''); bakeryCategory.set('All')">Clear filters</button>
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- RIGHT: Cart + Checkout -->
+      <div class="mobile-cart-fab" *ngIf="billItems().length > 0" (click)="mobileCartOpen.set(true)">
+        <i class="bi bi-cart3"></i>
+        <span class="fab-count">{{ billItems().length }}</span>
+        <span class="fab-total">₹{{ grandTotal() | number }}</span>
+      </div>
+
+      <div class="mobile-cart-overlay" [class.overlay-visible]="mobileCartOpen()" (click)="mobileCartOpen.set(false)"></div>
+
+      <div class="pos-cart-panel" [class.mobile-cart-open]="mobileCartOpen()">
+
+        <div class="mobile-drawer-handle" (click)="mobileCartOpen.set(false)">
+          <span class="handle-bar"></span>
+        </div>
+
+        <div class="pos-cart-hdr">
+          <div class="pos-cart-title">
+            <i class="bi bi-cart3"></i>
+            Cart
+            <span class="pos-cart-count" *ngIf="billItems().length > 0">{{ billItems().length }}</span>
+          </div>
+          <button class="pos-cart-clear-btn" *ngIf="billItems().length > 0" (click)="clearCart()">
+            <i class="bi bi-trash3"></i> Clear
+          </button>
+        </div>
+
+        <!-- Customer Section -->
+        <div class="pos-customer-section">
+          <div class="pos-cust-lbl">Customer <span class="optional-tag">optional</span></div>
+
+          <div class="selected-cust pos-sel-cust" *ngIf="selectedCustomer() as sc">
+            <div class="sc-av" [style.background]="'#e67e22'">{{ initials(sc.name) }}</div>
+            <div class="sc-info">
+              <span class="sc-name">{{ sc.name }}</span>
+              <span class="sc-meta"><i class="bi bi-telephone"></i> {{ sc.phone }}</span>
+            </div>
+            <span class="sc-due-chip" *ngIf="sc.totalDue > 0">Due: ₹{{ sc.totalDue | number }}</span>
+            <button class="sc-clear-btn" (click)="clearCustomer()" title="Change customer">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="cust-search-wrap" *ngIf="!selectedCustomer()">
+            <div class="cust-input pos-cust-input" [class.cust-input-focus]="showCustomerDropdown()">
+              <i class="bi bi-person-fill"></i>
+              <input type="text" placeholder="Walk-in or search customer…"
+                [ngModel]="customerSearch()" (ngModelChange)="customerSearch.set($event); onCustomerInput()"
+                (focus)="showCustomerDropdown.set(true)" (blur)="hideDropdown()" />
+            </div>
+            <div class="cust-dropdown" *ngIf="showCustomerDropdown() && filteredCustomers().length > 0">
+              <div class="cust-dd-item" *ngFor="let c of filteredCustomers(); trackBy: trackByCustomer" (mousedown)="selectCustomer(c)">
+                <div class="cdd-av">{{ initials(c.name) }}</div>
+                <div class="cdd-info">
+                  <span class="cdd-name">{{ c.name }}</span>
+                  <span class="cdd-meta">{{ c.phone }}</span>
+                </div>
+                <span class="cdd-due" *ngIf="c.totalDue > 0">₹{{ c.totalDue | number }} due</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cart Items -->
+        <div class="pos-cart-items" *ngIf="billItems().length > 0; else emptyCart">
+          <div class="pos-cart-item" *ngFor="let item of billItems(); let i = index; trackBy: trackByIndex">
+            <div class="pci-top-row">
+              <span class="pci-name">{{ item.productName }}</span>
+              <button class="pci-remove-btn" (click)="removeItem(i)" title="Remove item">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div class="pci-bottom-row">
+              <span class="pci-price">₹{{ item.pricePerUnit }}</span>
+              <div class="pci-qty-ctrl">
+                <button (click)="bakeryDecrement(item.productId)"><i class="bi bi-dash"></i></button>
+                <input type="number" class="pci-qty-input" [ngModel]="item.quantity" (ngModelChange)="onQtyChange(i, $event)" min="1" />
+                <button (click)="bakeryIncrementFromCart(item.productId)"><i class="bi bi-plus"></i></button>
+              </div>
+              <span class="pci-total">₹{{ item.total | number }}</span>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #emptyCart>
+          <div class="pos-empty-cart">
+            <i class="bi bi-cart-x"></i>
+            <span>Tap a product to add</span>
+          </div>
+        </ng-template>
+
+        <!-- Cart Total & Checkout -->
+        <div class="pos-checkout" *ngIf="billItems().length > 0">
+          <div class="pos-total-row">
+            <span class="pos-total-lbl">Total</span>
+            <span class="pos-total-val">₹{{ grandTotal() | number }}</span>
+          </div>
+
+          <div class="pos-pay-row">
+            <button class="pos-pt-btn" [class.pos-pt-cash]="paymentType()==='Cash'" (click)="onPaymentTypeChange('Cash')">
+              <i class="bi bi-cash"></i> Cash
+            </button>
+            <button class="pos-pt-btn" [class.pos-pt-upi]="paymentType()==='UPI'" (click)="onPaymentTypeChange('UPI')">
+              <i class="bi bi-phone"></i> UPI
+            </button>
+            <button class="pos-pt-btn" [class.pos-pt-credit]="paymentType()==='Credit'"
+              (click)="onPaymentTypeChange('Credit')"
+              [disabled]="isWalkIn()"
+              [class.pos-pt-disabled]="isWalkIn()">
+              <i class="bi bi-clock-history"></i> Credit
+            </button>
+          </div>
+
+          <div class="walkin-notice" *ngIf="isWalkIn()">
+            <i class="bi bi-person-walking"></i>
+            Walk-in customer — full payment (Cash or UPI) required
+          </div>
+
+          <div class="credit-notice" *ngIf="isCredit()">
+            <i class="bi bi-info-circle-fill"></i> ₹{{ grandTotal() | number }} added to customer due
+          </div>
+
+          <div class="pos-paid-section" *ngIf="!isCredit()">
+            <div class="pos-paid-row">
+              <label class="fi-lbl">Amount Received (₹)</label>
+              <div class="pos-paid-ctrl">
+                <button (click)="paidAmount.set(Math.max(0, paidAmount()-10))"><i class="bi bi-dash"></i></button>
+                <input type="number" [ngModel]="paidAmount()" (ngModelChange)="clampPaid($event)" />
+                <button (click)="paidAmount.set(Math.min(paidAmount()+10, grandTotal()))"><i class="bi bi-plus"></i></button>
+                <button class="pos-full-btn" (click)="paidAmount.set(grandTotal())">Exact</button>
+              </div>
+            </div>
+            <div class="overpaid-warn" *ngIf="paidAmount() > grandTotal()">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Amount exceeds total. Capped at ₹{{ grandTotal() | number }}.
+            </div>
+            <div class="pos-balance-row" *ngIf="balance() > 0 && paidAmount() > 0">
+              <span>Balance Due</span>
+              <span class="pos-balance-amt">₹{{ balance() | number }}</span>
+            </div>
+          </div>
+
+          <input type="text" class="pos-note-input fi"
+            placeholder="Order note (optional)"
+            [ngModel]="orderNote()" (ngModelChange)="orderNote.set($event)" />
+
+          <div class="pos-charge-row">
+            <button class="pos-charge-btn" (click)="saveOrder(false, true); mobileCartOpen.set(false)" [disabled]="isSavingOrder()">
+              <span class="spin-sm" *ngIf="isSavingOrder()"></span>
+              <ng-container *ngIf="!isSavingOrder()">
+                <i class="bi bi-receipt"></i>
+                {{ editingOrder() ? 'Update & Invoice' : 'Save & Invoice' }}
+              </ng-container>
+            </button>
+            <button class="pos-charge-btn pos-charge-new" (click)="saveOrder(true); mobileCartOpen.set(false)" [disabled]="isSavingOrder()" *ngIf="!editingOrder()">
+              <ng-container *ngIf="!isSavingOrder()">
+                <i class="bi bi-plus-lg"></i>
+                New
+              </ng-container>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       STANDARD BILLING LAYOUT (non-Bakery)
+  ═══════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeView()==='new-bill' && !isBakery()">
+    <div class="billing-layout">
+
+      <div class="edit-banner" *ngIf="editingOrder()">
+        <i class="bi bi-pencil-square"></i>
+        Editing Order <strong>#{{ editingOrder()!.id }}</strong> — make changes and click Update Order
+        <button class="edit-cancel-btn" (click)="cancelEdit()"><i class="bi bi-x-lg"></i> <span class="btn-txt">Cancel Edit</span></button>
+      </div>
+
+      <div class="bill-form-card">
+        <div class="bfc-hdr">
+          <i class="bi bi-receipt-cutoff"></i>
+          <span>{{ editingOrder() ? 'Edit Order' : 'New Bill' }}</span>
+        </div>
+
+        <!-- STEP 1: Customer -->
+        <div class="form-section">
+          <div class="sec-lbl"><span class="step-n">1</span> Customer</div>
+          <div class="selected-cust" *ngIf="selectedCustomer() as sc">
+            <div class="sc-av" [style.background]="'#0057FF'">{{ initials(sc.name) }}</div>
+            <div class="sc-info">
+              <span class="sc-name">{{ sc.name }}</span>
+              <span class="sc-meta"><i class="bi bi-telephone"></i> {{ sc.phone }} · ₹{{ sc.defaultPricePerCan }}/can</span>
+            </div>
+            <span class="sc-due-chip" *ngIf="sc.totalDue > 0">Due: ₹{{ sc.totalDue | number }}</span>
+            <button class="sc-clear-btn" (click)="clearCustomer()" title="Change customer">
+              <i class="bi bi-x-lg"></i> <span class="btn-txt">Change</span>
+            </button>
+          </div>
+          <div class="cust-search-wrap" *ngIf="!selectedCustomer()">
+            <div class="cust-input" [class.cust-input-focus]="showCustomerDropdown()">
+              <i class="bi bi-search"></i>
+              <input type="text" placeholder="Search by name or phone…"
+                [ngModel]="customerSearch()" (ngModelChange)="customerSearch.set($event); onCustomerInput()"
+                (focus)="showCustomerDropdown.set(true)" (blur)="hideDropdown()" />
+            </div>
+            <div class="cust-dropdown" *ngIf="showCustomerDropdown() && filteredCustomers().length > 0">
+              <div class="cust-dd-item" *ngFor="let c of filteredCustomers(); trackBy: trackByCustomer" (mousedown)="selectCustomer(c)">
+                <div class="cdd-av">{{ initials(c.name) }}</div>
+                <div class="cdd-info">
+                  <span class="cdd-name">{{ c.name }}</span>
+                  <span class="cdd-meta">{{ c.phone }} · ₹{{ c.defaultPricePerCan }}/can</span>
+                </div>
+                <span class="cdd-due" *ngIf="c.totalDue > 0">₹{{ c.totalDue | number }} due</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: Items -->
+        <div class="form-section">
+          <div class="sec-lbl"><span class="step-n">2</span> Items</div>
+          <div class="items-list">
+            <div class="item-row" *ngFor="let item of billItems(); let i = index; trackBy: trackByIndex">
+              <select class="fi fi-sel" [ngModel]="item.productId" (ngModelChange)="onProductChange(i, $event)">
+                <option *ngFor="let p of activeProducts(); trackBy: trackByProduct" [value]="p.id">{{ p.name }} ({{ p.capacity }})</option>
+              </select>
+              <div class="qty-ctrl">
+                <button class="qty-b" (click)="adjQty(i,-1)">−</button>
+                <input type="number" class="fi fi-qty" [ngModel]="item.quantity" (ngModelChange)="onQtyChange(i,$event)" min="1" />
+                <button class="qty-b" (click)="adjQty(i,1)">+</button>
+              </div>
+              <div class="price-wrap">
+                <span class="p-sym">₹</span>
+                <input type="number" class="fi-price" [ngModel]="item.pricePerUnit" (ngModelChange)="onPriceChange(i,$event)" min="0" />
+              </div>
+              <span class="item-total">₹{{ item.total | number }}</span>
+              <button class="rm-item" (click)="removeItem(i)" [disabled]="billItems().length===1" title="Remove item">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Mobile item cards -->
+          <div class="mobile-items-list">
+            <div class="mobile-item-card" *ngFor="let item of billItems(); let i = index; trackBy: trackByIndex">
+              <div class="mic-header">
+                <select class="fi fi-sel mic-select" [ngModel]="item.productId" (ngModelChange)="onProductChange(i, $event)">
+                  <option *ngFor="let p of activeProducts(); trackBy: trackByProduct" [value]="p.id">{{ p.name }}</option>
+                </select>
+                <button class="rm-item" (click)="removeItem(i)" [disabled]="billItems().length===1">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
+              <div class="mic-controls">
+                <div class="mic-field">
+                  <span class="mic-label">Qty</span>
+                  <div class="qty-ctrl">
+                    <button class="qty-b" (click)="adjQty(i,-1)">−</button>
+                    <input type="number" class="fi fi-qty mic-qty" [ngModel]="item.quantity" (ngModelChange)="onQtyChange(i,$event)" min="1" />
+                    <button class="qty-b" (click)="adjQty(i,1)">+</button>
+                  </div>
+                </div>
+                <div class="mic-field">
+                  <span class="mic-label">Price</span>
+                  <div class="price-wrap">
+                    <span class="p-sym">₹</span>
+                    <input type="number" class="fi-price" [ngModel]="item.pricePerUnit" (ngModelChange)="onPriceChange(i,$event)" min="0" />
+                  </div>
+                </div>
+                <div class="mic-field mic-total-field">
+                  <span class="mic-label">Total</span>
+                  <span class="item-total">₹{{ item.total | number }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-add-item" (click)="addItem()"><i class="bi bi-plus-circle"></i> Add item</button>
+
+          <!-- GST breakdown preview -->
+          <div class="gst-preview-bar" *ngIf="liveGst()">
+            <div class="gst-preview-row">
+              <span class="gst-preview-lbl">Subtotal (taxable)</span>
+              <span class="gst-preview-val">₹{{ liveGst()!.taxableAmount | number:'1.2-2' }}</span>
+            </div>
+            <div class="gst-preview-row" *ngIf="settings().gstType === 'GST'">
+              <span class="gst-preview-lbl">CGST @ {{ settings().cgstRate }}%</span>
+              <span class="gst-preview-val">₹{{ liveGst()!.cgst | number:'1.2-2' }}</span>
+            </div>
+            <div class="gst-preview-row" *ngIf="settings().gstType === 'GST'">
+              <span class="gst-preview-lbl">SGST @ {{ settings().sgstRate }}%</span>
+              <span class="gst-preview-val">₹{{ liveGst()!.sgst | number:'1.2-2' }}</span>
+            </div>
+            <div class="gst-preview-row" *ngIf="settings().gstType === 'IGST'">
+              <span class="gst-preview-lbl">IGST @ {{ settings().igstRate }}%</span>
+              <span class="gst-preview-val">₹{{ liveGst()!.igst | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="total-bar">
+            <span>Grand Total</span>
+            <span class="g-total">₹{{ grandTotal() | number }}</span>
+          </div>
+        </div>
+
+        <!-- STEP 3: Payment -->
+        <div class="form-section">
+          <div class="sec-lbl"><span class="step-n">3</span> Payment</div>
+          <div class="pay-type-row">
+            <button class="pt-btn" [class.pt-cash]="paymentType()==='Cash'" (click)="onPaymentTypeChange('Cash')"><i class="bi bi-cash"></i> Cash</button>
+            <button class="pt-btn" [class.pt-upi]="paymentType()==='UPI'"   (click)="onPaymentTypeChange('UPI')"><i class="bi bi-phone"></i> UPI</button>
+            <button class="pt-btn" [class.pt-credit]="paymentType()==='Credit'"
+              (click)="onPaymentTypeChange('Credit')"
+              [disabled]="isWalkIn()"
+              [class.pt-disabled]="isWalkIn()">
+              <i class="bi bi-clock-history"></i> Credit
+            </button>
+          </div>
+
+          <div class="walkin-notice" style="margin-bottom:12px" *ngIf="isWalkIn()">
+            <i class="bi bi-person-walking"></i>
+            Walk-in customer — full payment (Cash or UPI) required
+          </div>
+
+          <div class="credit-notice" *ngIf="isCredit()">
+            <i class="bi bi-info-circle-fill"></i> ₹{{ grandTotal() | number }} will be added to customer due
+          </div>
+          <div class="paid-section" *ngIf="!isCredit()">
+            <div class="paid-row">
+              <div class="fg" style="flex:1">
+                <label class="fi-lbl">Amount Paid (₹)</label>
+                <div class="qty-row">
+                  <button class="qty-b" (click)="paidAmount.set(Math.max(0,paidAmount()-10))">−</button>
+                  <input type="number" class="fi"
+                    style="text-align:center;font-family:'Space Mono',monospace;font-size:17px;font-weight:700"
+                    [ngModel]="paidAmount()" (ngModelChange)="clampPaid($event)" />
+                  <button class="qty-b" (click)="paidAmount.set(Math.min(paidAmount()+10, grandTotal()))">+</button>
+                </div>
+              </div>
+              <button class="btn-full-pay" (click)="paidAmount.set(grandTotal())">Full</button>
+            </div>
+            <div class="overpaid-warn" *ngIf="paidAmount() > grandTotal()">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Amount exceeds total. Capped at ₹{{ grandTotal() | number }}.
+            </div>
+            <div class="bal-row" *ngIf="balance()>0">
+              <span>Remaining Balance</span><span class="bal-amt">₹{{ balance() | number }}</span>
+            </div>
+            <div class="bal-row bal-ok" *ngIf="balance()===0 && grandTotal()>0">
+              <span>✓ Fully Paid</span>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fi-lbl">Delivery Note (optional)</label>
+            <input type="text" class="fi" placeholder="e.g. Deliver to back entrance"
+              [ngModel]="orderNote()" (ngModelChange)="orderNote.set($event)" />
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="bill-actions">
+          <button class="btn-reset" (click)="resetForm()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+          <button class="btn-save-new" (click)="saveOrder(true)" [disabled]="isSavingOrder()" *ngIf="!editingOrder()">
+            <i class="bi bi-plus-lg"></i> Save & New
+          </button>
+          <button class="btn-save-invoice" (click)="saveOrder(false, true)" [disabled]="isSavingOrder()">
+            <span class="spin-sm" *ngIf="isSavingOrder()"></span>
+            <i class="bi bi-receipt" *ngIf="!isSavingOrder()"></i>
+            {{ editingOrder() ? 'Update & Invoice' : 'Save & Invoice' }}
+          </button>
+          <button class="btn-save" (click)="saveOrder(false)" [disabled]="isSavingOrder()">
+            <span class="spin-sm" *ngIf="isSavingOrder()"></span>
+            <i class="bi bi-check-lg" *ngIf="!isSavingOrder()"></i>
+            {{ editingOrder() ? 'Update Order' : 'Save Order' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- RECENT ORDERS SIDEBAR -->
+      <div class="recent-col">
+        <div class="rc-hdr">
+          <h3>Recent Orders</h3>
+          <span class="rc-cnt">Last 10</span>
+        </div>
+        <div class="recent-list">
+          <div class="rc-item" *ngFor="let o of recentOrders(); trackBy: trackByOrder" (click)="openOrderDetail(o)">
+            <div class="rci-top">
+              <div class="rci-cust">
+                <div class="rci-av">{{ initials(o.customerName) }}</div>
+                <div>
+                  <span class="rci-name">{{ o.customerName }}</span>
+                  <span class="rci-id">#{{ o.id }}</span>
+                </div>
+              </div>
+              <span class="rci-st" [class]="getStatusClass(o.status)">{{ o.status }}</span>
+            </div>
+            <div class="rci-items">{{ o.items.map(i=>i.productName+' ×'+i.quantity).join(', ') }}</div>
+            <div class="rci-bot">
+              <span class="rci-total">₹{{ o.grandTotal | number }}</span>
+              <div class="rci-actions" (click)="$event.stopPropagation()">
+                <button class="rci-inv-btn" (click)="openInvoice(o)" title="Invoice">
+                  <i class="bi bi-receipt"></i>
+                </button>
+                <button class="rci-edit-btn" (click)="startEdit(o)"><i class="bi bi-pencil-fill"></i> Edit</button>
+                <span class="rci-time">{{ timeAgo(o.createdAt) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       ALL ORDERS TAB
+       KEY CHANGES:
+         - Search: (ngModelChange) → onSearchInput(value)
+         - Status buttons: (click) → onStatusFilter(...)
+         - Date buttons: unchanged — already call onDateFilterChange()
+         - Custom date pickers: unchanged — call onOrderFilter()
+  ═══════════════════════════════════════════════════════════ -->
+  <div *ngIf="activeView()==='all-orders'">
+    <div class="ord-filters">
+
+      <!-- Search box — debounced via onSearchInput() -->
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input
+          type="text"
+          placeholder="Search customer, order ID or note…"
+          [ngModel]="ordersSearch()"
+          (ngModelChange)="onSearchInput($event)" />
+        <!-- Clear button -->
+        <button class="search-clear-btn" *ngIf="ordersSearch()" (click)="onSearchInput('')" title="Clear search">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+
+      <!-- Status filter — each button calls onStatusFilter() directly -->
+      <div class="seg-ctrl">
+        <button
+          [class.seg-on]="ordersStatus()==='all'"
+          (click)="onStatusFilter('all')">
+          All
+        </button>
+        <button
+          [class.seg-on]="ordersStatus()==='Paid'"
+          (click)="onStatusFilter('Paid')">
+          Paid
+        </button>
+        <button
+          [class.seg-on]="ordersStatus()==='Credit'"
+          (click)="onStatusFilter('Credit')">
+          Credit
+        </button>
+        <button
+          [class.seg-on]="ordersStatus()==='Partial'"
+          (click)="onStatusFilter('Partial')">
+          Partial
+        </button>
+      </div>
+
+      <!-- Date filter -->
+      <div class="seg-ctrl">
+        <button [class.seg-on]="ordersDateFilter()==='all'"    (click)="onDateFilterChange('all')">All</button>
+        <button [class.seg-on]="ordersDateFilter()==='today'"  (click)="onDateFilterChange('today')">Today</button>
+        <button [class.seg-on]="ordersDateFilter()==='week'"   (click)="onDateFilterChange('week')">7 Days</button>
+        <button [class.seg-on]="ordersDateFilter()==='custom'" (click)="onDateFilterChange('custom')">Custom</button>
+      </div>
+    </div>
+
+    <!-- Custom date range row -->
+    <div class="date-range-wrap" *ngIf="ordersDateFilter()==='custom'">
+      <i class="bi bi-calendar3 dr-icon"></i>
+      <input type="date" class="fi date-fi"
+        [ngModel]="ordersDateFrom()"
+        (ngModelChange)="ordersDateFrom.set($event); onOrderFilter()" />
+      <span class="date-sep">→</span>
+      <input type="date" class="fi date-fi"
+        [ngModel]="ordersDateTo()"
+        (ngModelChange)="ordersDateTo.set($event); onOrderFilter()" />
+      <span class="date-count" *ngIf="ordersTotal() > 0">
+        {{ ordersTotal() }} order{{ ordersTotal() !== 1 ? 's' : '' }}
+      </span>
+    </div>
+
+    <!-- Desktop Table -->
+    <div class="table-card desktop-only">
+      <table class="ord-table">
+        <thead>
+          <tr>
+            <th>Order ID</th><th>Customer</th><th class="num-th">Total</th>
+            <th class="num-th">Paid</th><th class="num-th">Balance</th>
+            <th>Status</th><th>Note</th><th>Date</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let o of pagedOrders(); trackBy: trackByOrder" (click)="openOrderDetail(o)"
+              class="ord-row" [class.row-credit]="o.status==='Credit'">
+            <td><span class="ord-id">#{{ o.id }}</span></td>
+            <td><div class="cust-cell"><div class="cc-av">{{ initials(o.customerName) }}</div><span class="cc-name">{{ o.customerName }}</span></div></td>
+            <td class="num-td fw7">₹{{ o.grandTotal | number }}</td>
+            <td class="num-td paid-td">₹{{ o.paidAmount | number }}</td>
+            <td class="num-td" [class.bal-td]="o.balance>0">{{ o.balance>0 ? '₹'+(o.balance|number) : '—' }}</td>
+            <td><span class="st-badge" [class]="getStatusClass(o.status)">{{ o.status }}</span></td>
+            <td><span class="note-txt" *ngIf="o.deliveryNote">{{ o.deliveryNote }}</span><span *ngIf="!o.deliveryNote" class="no-note">—</span></td>
+            <td class="date-td">{{ fmtDate(o.createdAt) }}</td>
+            <td (click)="$event.stopPropagation()">
+              <div class="tbl-action-group">
+                <button class="btn-inv-tbl" (click)="openInvoice(o)" title="Invoice"><i class="bi bi-receipt"></i></button>
+                <button class="btn-edit-ord" (click)="startEdit(o); activeView.set('new-bill')"><i class="bi bi-pencil-fill"></i> Edit</button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="pagedOrders().length===0">
+            <td colspan="9" class="empty-cell"><i class="bi bi-receipt"></i> No orders found</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile card view -->
+    <div class="mobile-only">
+      <div class="mobile-orders-list" *ngIf="pagedOrders().length > 0; else mobileEmpty">
+        <div class="mobile-order-card" *ngFor="let o of pagedOrders(); trackBy: trackByOrder"
+          [class.moc-credit]="o.status==='Credit'" (click)="openOrderDetail(o)">
+          <div class="moc-top">
+            <div class="moc-id-row">
+              <span class="ord-id">#{{ o.id }}</span>
+              <span class="moc-time">{{ timeAgo(o.createdAt) }}</span>
+            </div>
+            <span class="st-badge" [class]="getStatusClass(o.status)">{{ o.status }}</span>
+          </div>
+          <div class="moc-customer">
+            <div class="cc-av">{{ initials(o.customerName) }}</div>
+            <span class="cc-name">{{ o.customerName }}</span>
+          </div>
+          <div class="moc-amounts">
+            <div class="moc-amount-item"><span class="moc-amount-lbl">Total</span><span class="moc-amount-val fw7">₹{{ o.grandTotal | number }}</span></div>
+            <div class="moc-amount-item"><span class="moc-amount-lbl">Paid</span><span class="moc-amount-val paid-td">₹{{ o.paidAmount | number }}</span></div>
+            <div class="moc-amount-item" *ngIf="o.balance > 0"><span class="moc-amount-lbl">Balance</span><span class="moc-amount-val bal-td">₹{{ o.balance | number }}</span></div>
+          </div>
+          <div class="moc-note" *ngIf="o.deliveryNote"><i class="bi bi-chat-left-text"></i><span>{{ o.deliveryNote }}</span></div>
+          <div class="moc-footer" (click)="$event.stopPropagation()">
+            <span class="date-td">{{ fmtDate(o.createdAt) }}</span>
+            <div class="moc-action-group">
+              <button class="btn-inv-mob" (click)="openInvoice(o)"><i class="bi bi-receipt"></i></button>
+              <button class="btn-edit-ord" (click)="startEdit(o); activeView.set('new-bill')"><i class="bi bi-pencil-fill"></i> Edit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ng-template #mobileEmpty>
+        <div class="mobile-empty-state"><i class="bi bi-receipt"></i><p>No orders found</p></div>
+      </ng-template>
+    </div>
+
+    <div class="pagination-bar" *ngIf="totalOrdPages() > 1">
+      <button class="pg-btn" (click)="goOrderPage(ordersPage()-1)" [disabled]="ordersPage()===1"><i class="bi bi-chevron-left"></i></button>
+      <button class="pg-btn" *ngFor="let p of ordPagesArr(); trackBy: trackByNumber"
+        [class.pg-active]="p===ordersPage()" (click)="goOrderPage(p)">{{ p }}</button>
+      <button class="pg-btn" (click)="goOrderPage(ordersPage()+1)" [disabled]="ordersPage()===totalOrdPages()"><i class="bi bi-chevron-right"></i></button>
+      <span class="pg-info">{{ ordersTotal() }} orders · Page {{ ordersPage() }} of {{ totalOrdPages() }}</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ORDER DETAIL MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="modal-mask" *ngIf="viewOrderDetail()" (click)="viewOrderDetail.set(null)">
+  <div class="ord-detail-modal" (click)="$event.stopPropagation()">
+    <div class="dm-hdr">
+      <div>
+        <h3>Order #{{ viewOrderDetail()!.id }}</h3>
+        <p>{{ viewOrderDetail()!.customerName }}</p>
+      </div>
+      <button class="modal-x" (click)="viewOrderDetail.set(null)"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="dm-body">
+      <table class="dt-table">
+        <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let item of viewOrderDetail()!.items; trackBy: trackByIndex">
+            <td>{{ item.productName }}</td><td>{{ item.quantity }}</td>
+            <td>₹{{ item.pricePerUnit }}</td><td class="fw7">₹{{ item.total | number }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="dm-summary">
+        <div class="dms-row"><span>Grand Total</span><strong>₹{{ viewOrderDetail()!.grandTotal | number }}</strong></div>
+        <div class="dms-row"><span>Paid Amount</span><span class="paid-td">₹{{ viewOrderDetail()!.paidAmount | number }}</span></div>
+        <div class="dms-row" *ngIf="viewOrderDetail()!.balance > 0"><span>Balance Due</span><span class="bal-td">₹{{ viewOrderDetail()!.balance | number }}</span></div>
+        <div class="dms-row"><span>Payment Type</span><span class="pay-type-txt">{{ viewOrderDetail()!.paymentType }}</span></div>
+        <div class="dms-row"><span>Status</span><span class="st-badge" [class]="getStatusClass(viewOrderDetail()!.status)">{{ viewOrderDetail()!.status }}</span></div>
+        <div class="dms-row" *ngIf="viewOrderDetail()!.deliveryNote"><span>Note</span><span class="note-txt">{{ viewOrderDetail()!.deliveryNote }}</span></div>
+        <div class="dms-row"><span>Date</span><span class="date-td">{{ fmtDate(viewOrderDetail()!.createdAt) }}</span></div>
+      </div>
+      <div class="dm-payments">
+        <div class="dmp-hdr"><i class="bi bi-clock-history"></i><span>Payment History</span></div>
+        <div class="dmp-loading" *ngIf="loadingPayments()"><span class="spin-sm" style="border-color:rgba(0,0,0,.15);border-top-color:var(--primary)"></span><span>Loading payments…</span></div>
+        <div class="dmp-empty" *ngIf="!loadingPayments() && orderPayments().length === 0"><i class="bi bi-receipt"></i><span>No payment records for this order</span></div>
+        <table class="dmp-table desktop-only" *ngIf="!loadingPayments() && orderPayments().length > 0">
+          <thead><tr><th>Date</th><th>Type</th><th>Note</th><th class="num-th">Amount</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let pmt of orderPayments(); trackBy: trackByIndex">
+              <td class="date-td">{{ fmtDate(pmt.date) }}</td>
+              <td><span class="pmt-type-badge" [class.pmt-cash]="pmt.paymentType==='Cash'" [class.pmt-upi]="pmt.paymentType==='UPI'"><i class="bi" [class.bi-cash]="pmt.paymentType==='Cash'" [class.bi-phone]="pmt.paymentType==='UPI'"></i> {{ pmt.paymentType }}</span></td>
+              <td><span class="note-txt" *ngIf="pmt.note">{{ pmt.note }}</span><span *ngIf="!pmt.note" class="no-note">—</span></td>
+              <td class="num-td fw7 paid-td">₹{{ pmt.amount | number }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="dmp-mobile-list mobile-only" *ngIf="!loadingPayments() && orderPayments().length > 0">
+          <div class="dmp-card" *ngFor="let pmt of orderPayments(); trackBy: trackByIndex">
+            <div class="dmp-card-top">
+              <span class="pmt-type-badge" [class.pmt-cash]="pmt.paymentType==='Cash'" [class.pmt-upi]="pmt.paymentType==='UPI'"><i class="bi" [class.bi-cash]="pmt.paymentType==='Cash'" [class.bi-phone]="pmt.paymentType==='UPI'"></i> {{ pmt.paymentType }}</span>
+              <span class="dmp-card-amt paid-td fw7">₹{{ pmt.amount | number }}</span>
+            </div>
+            <div class="dmp-card-bot"><span class="date-td">{{ fmtDate(pmt.date) }}</span><span class="note-txt" *ngIf="pmt.note">{{ pmt.note }}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dm-ftr">
+      <button class="btn-invoice-ord" (click)="openInvoice(viewOrderDetail()!)"><i class="bi bi-receipt"></i> Invoice</button>
+      <button class="btn-delete-ord" (click)="deleteOrder(viewOrderDetail()!)" [disabled]="isDeletingOrder()">
+        <span class="spin-sm" style="border-color:rgba(255,255,255,.3);border-top-color:#fff" *ngIf="isDeletingOrder()"></span>
+        <i class="bi bi-trash3" *ngIf="!isDeletingOrder()"></i> Delete
+      </button>
+      <button class="btn-edit-ord" style="padding:9px 18px;font-size:14px"
+        (click)="startEdit(viewOrderDetail()!); viewOrderDetail.set(null); activeView.set('new-bill')">
+        <i class="bi bi-pencil-fill"></i> Edit Order
+      </button>
+      <button class="btn-close-dm" (click)="viewOrderDetail.set(null)">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     INVOICE MODAL
+═══════════════════════════════════════════════════════════ -->
+<div class="inv-mask" *ngIf="invoiceOrder()" (click)="closeInvoice()">
+  <div class="inv-shell" (click)="$event.stopPropagation()">
+
+    <div class="inv-toolbar">
+      <div class="inv-tb-left">
+        <button class="inv-tb-btn inv-tb-close" (click)="closeInvoice()"><i class="bi bi-x-lg"></i></button>
+        <span class="inv-tb-title">Invoice #{{ invoiceOrder()!.id }}</span>
+      </div>
+      <div class="inv-tb-right">
+        <button class="inv-tb-btn inv-tb-share" (click)="shareInvoicePdf()" [disabled]="isSharingPdf()">
+          <span class="spin-sm" *ngIf="isSharingPdf()" style="border-color:rgba(255,255,255,.3);border-top-color:#fff;width:13px;height:13px;"></span>
+          <i class="bi bi-whatsapp" *ngIf="!isSharingPdf()"></i>
+          <span>{{ isSharingPdf() ? 'Preparing…' : 'Share PDF' }}</span>
+        </button>
+        <button class="inv-tb-btn inv-tb-print" (click)="printInvoice()">
+          <i class="bi bi-printer-fill"></i><span>Print</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="inv-preview-area">
+      <div class="inv-paper" id="inv-print-area">
+        <div class="inv-doc">
+
+          <div class="inv-header">
+            <div class="inv-brand">
+              <ng-container *ngIf="settings().showLogoOnInvoice && settings().logoUrl; else defaultBrandIcon">
+                <img class="inv-logo-img" [src]="settings().logoUrl" alt="Logo" />
+              </ng-container>
+              <ng-template #defaultBrandIcon>
+                <div class="inv-brand-icon"><i class="bi bi-shop"></i></div>
+              </ng-template>
+              <div class="inv-brand-text">
+                <div class="inv-business-name">{{ settings().businessName || 'My Business' }}</div>
+                <div class="inv-business-sub" *ngIf="settings().address">
+                  <i class="bi bi-geo-alt"></i> {{ settings().address }}
+                </div>
+                <div class="inv-business-sub" *ngIf="settings().phone">
+                  <i class="bi bi-telephone"></i> {{ settings().phone }}
+                  <span *ngIf="settings().email"> · {{ settings().email }}</span>
+                </div>
+                <div class="inv-business-gstin" *ngIf="settings().gstin">GSTIN: {{ settings().gstin }}</div>
+              </div>
+            </div>
+            <div class="inv-meta">
+              <div class="inv-meta-badge">INVOICE</div>
+              <table class="inv-meta-table">
+                <tr><td class="imt-lbl">Invoice No.</td><td class="imt-val">#{{ invoiceOrder()!.id }}</td></tr>
+                <tr><td class="imt-lbl">Date</td><td class="imt-val">{{ fmtInvoiceDate(invoiceOrder()!.createdAt) }}</td></tr>
+                <tr>
+                  <td class="imt-lbl">Status</td>
+                  <td class="imt-val">
+                    <span class="inv-status-chip" [class]="getInvStatusClass(invoiceOrder()!.status)">{{ invoiceOrder()!.status }}</span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="inv-rule"></div>
+
+          <div class="inv-bill-to" *ngIf="invoiceOrder()!.customerName !== 'Walk-in Customer'">
+            <div class="inv-section-lbl">Bill To</div>
+            <div class="inv-customer-name">{{ invoiceOrder()!.customerName }}</div>
+            <div class="inv-customer-meta" *ngIf="invoiceCustomer() as cust">
+              <span *ngIf="cust.phone"><i class="bi bi-telephone"></i> {{ cust.phone }}</span>
+              <span *ngIf="cust.address"><i class="bi bi-geo-alt"></i> {{ cust.address }}</span>
+            </div>
+          </div>
+          <div class="inv-walkin" *ngIf="invoiceOrder()!.customerName === 'Walk-in Customer'">
+            <i class="bi bi-person-walking"></i> Walk-in Customer
+          </div>
+
+          <div class="inv-items-wrap">
+            <table class="inv-items-table">
+              <thead>
+                <tr>
+                  <th class="it-sl">#</th>
+                  <th class="it-name">Item</th>
+                  <th class="it-num">Qty</th>
+                  <th class="it-num">Rate</th>
+                  <th class="it-num it-amt">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of invoiceOrder()!.items; let i = index; trackBy: trackByIndex">
+                  <td class="it-sl">{{ i + 1 }}</td>
+                  <td class="it-name">{{ item.productName }}</td>
+                  <td class="it-num">{{ item.quantity }}</td>
+                  <td class="it-num">₹{{ item.pricePerUnit | number:'1.2-2' }}</td>
+                  <td class="it-num it-amt fw7">₹{{ item.total | number:'1.2-2' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="inv-totals">
+            <div class="inv-totals-inner">
+              <ng-container *ngIf="invoiceGst().totalGst > 0; else noGstSubtotal">
+                <div class="inv-tot-row">
+                  <span class="it-lbl">Subtotal (taxable)</span>
+                  <span class="it-val">₹{{ invoiceGst().taxableAmount | number:'1.2-2' }}</span>
+                </div>
+                <ng-container *ngIf="invoiceOrder()!.gstType === 'GST'">
+                  <div class="inv-tot-row inv-gst-row">
+                    <span class="it-lbl">CGST @ {{ invoiceOrder()!.cgstRate }}%</span>
+                    <span class="it-val">₹{{ invoiceGst().cgst | number:'1.2-2' }}</span>
+                  </div>
+                  <div class="inv-tot-row inv-gst-row">
+                    <span class="it-lbl">SGST @ {{ invoiceOrder()!.sgstRate }}%</span>
+                    <span class="it-val">₹{{ invoiceGst().sgst | number:'1.2-2' }}</span>
+                  </div>
+                </ng-container>
+                <ng-container *ngIf="invoiceOrder()!.gstType === 'IGST'">
+                  <div class="inv-tot-row inv-gst-row">
+                    <span class="it-lbl">IGST @ {{ invoiceOrder()!.igstRate }}%</span>
+                    <span class="it-val">₹{{ invoiceGst().igst | number:'1.2-2' }}</span>
+                  </div>
+                </ng-container>
+                <div class="inv-tot-row inv-gst-total-row">
+                  <span class="it-lbl">Total (incl. GST)</span>
+                  <span class="it-val">₹{{ invoiceOrder()!.grandTotal | number:'1.2-2' }}</span>
+                </div>
+              </ng-container>
+              <ng-template #noGstSubtotal>
+                <div class="inv-tot-row">
+                  <span class="it-lbl">Subtotal</span>
+                  <span class="it-val">₹{{ invoiceOrder()!.grandTotal | number:'1.2-2' }}</span>
+                </div>
+              </ng-template>
+
+              <div class="inv-tot-row" *ngIf="invoiceOrder()!.paidAmount > 0 && invoiceOrder()!.status !== 'Paid'">
+                <span class="it-lbl">Amount Paid</span>
+                <span class="it-val it-paid">₹{{ invoiceOrder()!.paidAmount | number:'1.2-2' }}</span>
+              </div>
+
+              <div class="inv-tot-divider"></div>
+
+              <div class="inv-tot-row inv-grand">
+                <span class="it-lbl">
+                  {{ invoiceOrder()!.status === 'Paid' ? 'Total Paid' : invoiceOrder()!.status === 'Credit' ? 'Amount Due' : 'Balance Due' }}
+                </span>
+                <span class="it-val it-grand">₹{{ getDisplayAmount() | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="inv-pay-strip">
+            <div class="inv-pay-item">
+              <i class="bi" [class.bi-cash-stack]="invoiceOrder()!.paymentType==='Cash'"
+                            [class.bi-phone-fill]="invoiceOrder()!.paymentType==='UPI'"
+                            [class.bi-clock-history]="invoiceOrder()!.paymentType==='Credit'"></i>
+              {{ invoiceOrder()!.paymentType }}
+            </div>
+            <div class="inv-pay-item" *ngIf="invoiceOrder()!.deliveryNote">
+              <i class="bi bi-chat-left-text"></i> {{ invoiceOrder()!.deliveryNote }}
+            </div>
+            <div class="inv-pay-item inv-pay-date">
+              <i class="bi bi-calendar3"></i>
+              {{ fmtInvoiceDate(invoiceOrder()!.createdAt) }}
+            </div>
+          </div>
+
+          <div class="inv-words">
+            <span class="inv-words-lbl">Total Amount in words:</span>
+            <span class="inv-words-val">{{ amountInWords(settings().gstEnabled && settings().showGstOnInvoice ? invoiceGst().grandTotal : invoiceOrder()!.grandTotal) }}</span>
+          </div>
+
+          <div class="inv-footer">
+            <div class="inv-footer-left">
+              <div class="inv-thank">Thank you for your business!</div>
+              <div class="inv-powered">Powered by ShopOS</div>
+            </div>
+            <div class="inv-footer-right">
+              <div class="inv-sig-name" *ngIf="currentUser()?.name">{{ currentUser()!.name }}</div>
+              <div class="inv-sig-line"></div>
+              <div class="inv-sig-lbl">Authorised Signatory</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

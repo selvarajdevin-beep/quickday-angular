@@ -1,0 +1,72 @@
+/* ============================================================
+   GLOBAL STYLES — AquaERP
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css');
+
+/* Theme color CSS variable (overridden by settings) */
+:root {
+  --app-primary: #0057FF;
+  --app-primary-light: #e8f0ff;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #F0F2F5;
+  color: #111827;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Smooth scrolling */
+html { scroll-behavior: smooth; }
+
+/* Fix page content scroll — prevent offset when anchor-navigating */
+main, .page-content { scroll-padding-top: 60px; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* Focus visible outline */
+:focus-visible { outline: 2px solid var(--app-primary); outline-offset: 2px; }
+
+/* Remove default button/input styles */
+button { font-family: inherit; }
+input, select, textarea { font-family: inherit; }
+
+/* Mobile responsive base */
+img, video { max-width: 100%; height: auto; }
+
+/* Utility: spin animation (used by multiple components) */
+@keyframes spin-global { to { transform: rotate(360deg); } }
+
+/* PWA safe area */
+@supports (padding: max(0px)) {
+  .app-shell {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+/* ── MOBILE RESPONSIVE GLOBAL OVERRIDES ─────────────────── */
+@media (max-width: 768px) {
+  .page-content { padding: 12px 14px !important; }
+
+  /* Tables scroll horizontally on mobile */
+  table { min-width: unset !important; }
+
+  /* Modals full-screen on mobile */
+  .modal-box { max-width: 100% !important; margin: 0 !important; border-radius: 16px 16px 0 0 !important; position: fixed !important; bottom: 0 !important; }
+
+  /* Drawers full width on mobile */
+  .drawer { width: 100% !important; }
+}
+

@@ -1,0 +1,274 @@
+<!-- src/app/features/superadmin/sa-dashboard/sa-dashboard.component.html -->
+<div class="sa-page">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="sa-page-header">
+    <div>
+      <h2 class="sa-page-title">
+        <i class="bi bi-shield-fill-check sa-title-icon"></i>
+        Super Admin Dashboard
+      </h2>
+      <p class="sa-page-sub">Platform overview — all registered shops</p>
+    </div>
+    <button class="sa-refresh-btn" (click)="loadAll()">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+  </div>
+
+  <!-- ── Loading skeleton ───────────────────────────────────────────────── -->
+  <div class="sa-loading" *ngIf="isLoadingDash() && isLoadingRev()">
+    <div class="spin"></div><span>Loading dashboard…</span>
+  </div>
+
+  <!-- ── Errors ─────────────────────────────────────────────────────────── -->
+  <div class="sa-error" *ngIf="errorDash() && !isLoadingDash()">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ errorDash() }}
+  </div>
+  <div class="sa-error" *ngIf="errorRev() && !isLoadingRev()">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ errorRev() }}
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 1 — Shop Stats KPIs                                        -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="dash() && !isLoadingDash()">
+
+    <div class="section-label">
+      <i class="bi bi-shop"></i> Shop Overview
+    </div>
+
+    <div class="sa-kpi-grid">
+
+      <div class="sa-kpi sa-kpi-blue">
+        <div class="sa-kpi-icon"><i class="bi bi-shop"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ dash()!.totalShops }}</div>
+          <div class="sa-kpi-lbl">Total Shops</div>
+        </div>
+      </div>
+
+      <div class="sa-kpi sa-kpi-green">
+        <div class="sa-kpi-icon"><i class="bi bi-check-circle-fill"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ dash()!.activeShops }}</div>
+          <div class="sa-kpi-lbl">Active</div>
+        </div>
+      </div>
+
+      <div class="sa-kpi sa-kpi-amber">
+        <div class="sa-kpi-icon"><i class="bi bi-clock-fill"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ dash()!.expiringIn30Days }}</div>
+          <div class="sa-kpi-lbl">Expiring in 30 days</div>
+        </div>
+      </div>
+
+      <div class="sa-kpi sa-kpi-red">
+        <div class="sa-kpi-icon"><i class="bi bi-x-circle-fill"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ dash()!.expiredShops }}</div>
+          <div class="sa-kpi-lbl">Expired</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Plan Distribution -->
+    <div class="sa-plan-card">
+      <div class="sa-plan-title">Plan Distribution</div>
+      <div class="sa-plan-rows">
+
+        <div class="sa-plan-row">
+          <span class="sa-plan-name plan-free">Free</span>
+          <div class="sa-plan-bar-wrap">
+            <div class="sa-plan-bar sa-bar-free"
+              [style.width.%]="planPercent(dash()!.freePlanCount)"></div>
+          </div>
+          <span class="sa-plan-count">{{ dash()!.freePlanCount }}</span>
+          <span class="sa-plan-pct">{{ planPercent(dash()!.freePlanCount) }}%</span>
+        </div>
+
+        <div class="sa-plan-row">
+          <span class="sa-plan-name plan-basic">Basic</span>
+          <div class="sa-plan-bar-wrap">
+            <div class="sa-plan-bar sa-bar-basic"
+              [style.width.%]="planPercent(dash()!.basicPlanCount)"></div>
+          </div>
+          <span class="sa-plan-count">{{ dash()!.basicPlanCount }}</span>
+          <span class="sa-plan-pct">{{ planPercent(dash()!.basicPlanCount) }}%</span>
+        </div>
+
+        <div class="sa-plan-row">
+          <span class="sa-plan-name plan-pro">Pro</span>
+          <div class="sa-plan-bar-wrap">
+            <div class="sa-plan-bar sa-bar-pro"
+              [style.width.%]="planPercent(dash()!.proPlanCount)"></div>
+          </div>
+          <span class="sa-plan-count">{{ dash()!.proPlanCount }}</span>
+          <span class="sa-plan-pct">{{ planPercent(dash()!.proPlanCount) }}%</span>
+        </div>
+
+      </div>
+    </div>
+
+  </ng-container>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 2 — Revenue KPIs                                           -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="rev() && !isLoadingRev()">
+
+    <div class="section-label">
+      <i class="bi bi-currency-rupee"></i> Revenue & Income
+    </div>
+
+    <div class="rv-kpi-grid">
+
+      <div class="rv-kpi rv-kpi-blue">
+        <div class="rv-kpi-icon"><i class="bi bi-currency-rupee"></i></div>
+        <div class="rv-kpi-body">
+          <div class="rv-kpi-lbl">Total Revenue</div>
+          <div class="rv-kpi-val">{{ formatINR(rev()!.totalRevenue) }}</div>
+          <div class="rv-kpi-sub">All time · {{ rev()!.totalTransactions }} txns</div>
+        </div>
+      </div>
+
+      <div class="rv-kpi rv-kpi-green">
+        <div class="rv-kpi-icon"><i class="bi bi-calendar-check-fill"></i></div>
+        <div class="rv-kpi-body">
+          <div class="rv-kpi-lbl">This Month</div>
+          <div class="rv-kpi-val">{{ formatINR(rev()!.currentMonthRevenue) }}</div>
+          <div class="rv-kpi-sub" [ngClass]="momClass()">
+            <i class="bi" [ngClass]="momIcon()"></i>
+            <ng-container *ngIf="rev()!.momChangePercent !== 0; else noMom">
+              {{ rev()!.momChangePercent > 0 ? '+' : '' }}{{ rev()!.momChangePercent }}% vs last month
+            </ng-container>
+            <ng-template #noMom>No previous month data</ng-template>
+          </div>
+        </div>
+      </div>
+
+      <div class="rv-kpi rv-kpi-amber">
+        <div class="rv-kpi-icon"><i class="bi bi-hourglass-split"></i></div>
+        <div class="rv-kpi-body">
+          <div class="rv-kpi-lbl">Pending</div>
+          <div class="rv-kpi-val">{{ formatINR(rev()!.pendingRevenue) }}</div>
+          <div class="rv-kpi-sub">Invoiced, not collected</div>
+        </div>
+      </div>
+
+      <div class="rv-kpi rv-kpi-purple">
+        <div class="rv-kpi-icon"><i class="bi bi-patch-check-fill"></i></div>
+        <div class="rv-kpi-body">
+          <div class="rv-kpi-lbl">Active Paid</div>
+          <div class="rv-kpi-val">{{ rev()!.activePaidSubscriptions }}</div>
+          <div class="rv-kpi-sub">Avg {{ formatINR(rev()!.avgRevenuePerBusiness) }} / shop</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Charts Row ────────────────────────────────────────────────── -->
+    <div class="rv-charts-row">
+
+      <!-- Bar chart — Monthly Revenue -->
+      <div class="rv-chart-card">
+        <div class="rv-chart-hdr">
+          <span class="rv-chart-title">Monthly Revenue</span>
+          <span class="rv-chart-sub">Last 12 months</span>
+        </div>
+
+        <!--
+          KEY FIX: canvas is ALWAYS in the DOM — never inside *ngIf.
+          The empty-state and canvas are toggled with [hidden] so
+          @ViewChild can always resolve barCanvas.
+        -->
+        <div class="rv-bar-wrap" [hidden]="!hasBarData()">
+          <canvas #barCanvas></canvas>
+        </div>
+        <div class="rv-chart-empty" [hidden]="hasBarData()">
+          <i class="bi bi-bar-chart"></i>
+          <p>No revenue recorded yet</p>
+          <span>Paid payments will appear here once collected</span>
+        </div>
+      </div>
+
+      <!-- Donut chart — Revenue by Plan -->
+      <div class="rv-chart-card rv-chart-donut">
+        <div class="rv-chart-hdr">
+          <span class="rv-chart-title">Revenue by Plan</span>
+          <span class="rv-chart-sub">All time · paid only</span>
+        </div>
+
+        <!--
+          Same fix: donutCanvas always in DOM, toggled via [hidden]
+        -->
+        <div [hidden]="!hasDonutData()">
+          <div class="rv-donut-wrap">
+            <canvas #donutCanvas></canvas>
+          </div>
+          <div class="rv-donut-legend">
+            <div class="rv-legend-item" *ngFor="let p of rev()!.planRevenue">
+              <span class="rv-legend-dot" [style.background]="planDotColor(p.plan)"></span>
+              <span class="rv-legend-name">
+                <span class="ssc-plan" [ngClass]="planBadgeClass(p.plan)">{{ p.plan }}</span>
+              </span>
+              <span class="rv-legend-pct">{{ p.revenuePercent }}%</span>
+              <span class="rv-legend-amt">{{ formatINR(p.revenue) }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="rv-chart-empty" [hidden]="hasDonutData()">
+          <i class="bi bi-pie-chart"></i>
+          <p>No plan data yet</p>
+          <span>Plan breakdown will appear once payments are recorded</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Recent Payments ────────────────────────────────────────── -->
+    <div class="rv-recent-card">
+      <div class="rv-chart-hdr">
+        <span class="rv-chart-title">Recent Payments</span>
+        <span class="rv-chart-sub">Last 10 confirmed transactions</span>
+      </div>
+
+      <div class="rv-chart-empty" *ngIf="!rev()!.recentPayments.length">
+        <i class="bi bi-inbox"></i>
+        <p>No payments yet</p>
+      </div>
+
+      <div class="rv-payment-list" *ngIf="rev()!.recentPayments.length">
+        <div class="rv-payment-row" *ngFor="let p of rev()!.recentPayments">
+          <div class="rv-pay-icon">
+            <i class="bi" [ngClass]="paymentMethodIcon(p.paymentMethod)"></i>
+          </div>
+          <div class="rv-pay-info">
+            <div class="rv-pay-name">{{ p.businessName }}</div>
+            <div class="rv-pay-owner">{{ p.ownerName }}</div>
+          </div>
+          <div class="rv-pay-meta">
+            <span class="ssc-plan" [ngClass]="planBadgeClass(p.plan)">{{ p.plan }}</span>
+            <span class="rv-pay-duration">{{ p.durationMonths }}mo</span>
+          </div>
+          <div class="rv-pay-amount">
+            <div class="rv-pay-amtval">{{ formatINR(p.amount) }}</div>
+            <div class="rv-pay-date">{{ p.paymentDate | date:'dd MMM yyyy' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick link to shops -->
+    <div class="sa-quick-link">
+      <a routerLink="/superadmin/shops" class="sa-ql-btn">
+        <i class="bi bi-grid-fill"></i>
+        Manage All Shops
+        <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+
+  </ng-container>
+
+</div>

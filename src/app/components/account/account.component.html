@@ -1,0 +1,138 @@
+<div class="account-page" *ngIf="currentUser() as u">
+
+  <!-- ── Page Header ───────────────────────────────────────── -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">My Account</h2>
+      <p class="page-subtitle">Your profile and account information</p>
+    </div>
+    <!-- Read-only badge — makes it clear editing is not possible -->
+    <div class="readonly-badge">
+      <i class="bi bi-lock-fill"></i> View Only
+    </div>
+  </div>
+
+  <!-- ── Profile Hero Card ─────────────────────────────────── -->
+  <div class="profile-hero">
+    <div class="hero-avatar" [style.background]="avatarBg()">
+      {{ initials(u.name) }}
+    </div>
+    <div class="hero-info">
+      <h3 class="hero-name">{{ u.name }}</h3>
+      <p class="hero-phone">{{ u.phone }}</p>
+      <p class="hero-email" *ngIf="u.email">{{ u.email }}</p>
+    </div>
+    <div class="hero-right">
+      <span class="role-chip" [class.chip-admin]="u.role === 'Admin'" [class.chip-worker]="u.role === 'Worker'">
+        <i class="bi" [class.bi-shield-fill-check]="u.role === 'Admin'" [class.bi-person-workspace]="u.role === 'Worker'"></i>
+        {{ u.role }}
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Detail Sections ───────────────────────────────────── -->
+  <div class="sections-grid">
+
+    <!-- Personal Info -->
+    <div class="detail-card">
+      <div class="card-title">
+        <i class="bi bi-person-fill"></i> Personal Information
+      </div>
+      <div class="detail-rows">
+        <div class="detail-row">
+          <span class="dr-label">Full Name</span>
+          <span class="dr-value">{{ u.name }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="dr-label">Phone</span>
+          <span class="dr-value">{{ u.phone }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="dr-label">Email</span>
+          <span class="dr-value" *ngIf="u.email">{{ u.email }}</span>
+          <span class="dr-value dr-empty" *ngIf="!u.email">Not provided</span>
+        </div>
+        <div class="detail-row">
+          <span class="dr-label">Role</span>
+          <span class="dr-value">
+            <span class="role-chip role-chip-sm"
+              [class.chip-admin]="u.role === 'Admin'"
+              [class.chip-worker]="u.role === 'Worker'">
+              <i class="bi" [class.bi-shield-fill-check]="u.role === 'Admin'" [class.bi-person-workspace]="u.role === 'Worker'"></i>
+              {{ u.role }}
+            </span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business Info -->
+    <div class="detail-card">
+      <div class="card-title">
+        <i class="bi bi-shop"></i> Business Information
+      </div>
+      <div class="detail-rows">
+        <div class="detail-row">
+          <span class="dr-label">Business Name</span>
+          <span class="dr-value">{{ u.businessName }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="dr-label">Shop Type</span>
+          <span class="dr-value" *ngIf="u.shopType">{{ u.shopType }}</span>
+          <span class="dr-value dr-empty" *ngIf="!u.shopType">—</span>
+        </div>
+        <div class="detail-row">
+          <span class="dr-label">Account ID</span>
+          <span class="dr-value mono">#{{ u.businessAccountId }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="dr-label">Currency</span>
+          <span class="dr-value">{{ u.currency }} ({{ u.currencySymbol }})</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscription Info -->
+    <div class="detail-card detail-card-full">
+      <div class="card-title">
+        <i class="bi bi-patch-check-fill"></i> Subscription
+      </div>
+      <div class="sub-content">
+        <div class="sub-plan-wrap">
+          <span class="sub-plan-badge" [ngClass]="planBadgeClass(u.subscriptionPlan)">
+            <i class="bi bi-stars"></i>
+            {{ u.subscriptionPlan || 'Free' }} Plan
+          </span>
+          <span class="sub-expiry" *ngIf="u.subscriptionExpiry">
+            <i class="bi bi-calendar-event"></i>
+            Valid until {{ formatExpiry(u.subscriptionExpiry) }}
+          </span>
+        </div>
+        <div class="sub-note">
+          <i class="bi bi-info-circle"></i>
+          To change your plan or update business details, please contact your administrator.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Security Note ─────────────────────────────────────── -->
+  <!-- <div class="security-note">
+    <i class="bi bi-shield-lock-fill"></i>
+    <div>
+      <div class="sn-title">Account managed by Admin</div>
+      <div class="sn-sub">To update your name, phone, email or password, ask an Admin to edit your profile from the Users &amp; Roles page.</div>
+    </div>
+  </div> -->
+
+  <!-- ── Security Note — only for non-admin users ─────────── -->
+  <div class="security-note" *ngIf="u.role !== 'Admin'">
+    <i class="bi bi-shield-lock-fill"></i>
+    <div>
+      <div class="sn-title">Account managed by Admin</div>
+      <div class="sn-sub">To update your name, phone, email or password, ask an Admin to edit your profile from the Users &amp; Roles page.</div>
+    </div>
+  </div>
+
+</div>

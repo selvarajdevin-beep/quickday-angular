@@ -1,0 +1,362 @@
+<div class="products-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title"><i class="bi bi-box-seam ph-icon"></i> Products</h2>
+      <p class="page-subtitle">Manage your product catalogue</p>
+    </div>
+    <button class="btn-add" (click)="openAdd()">
+      <i class="bi bi-plus-lg"></i>
+      <span class="btn-add-txt">Add Product</span>
+    </button>
+  </div>
+
+  <!-- Summary strip — FIX 1 & 2: use server-authoritative signals -->
+  <div class="summary-strip">
+    <div class="sum-card">
+      <span class="sum-lbl">Total</span>
+      <span class="sum-val">{{ summaryTotal() }}</span>  <!-- was products().length -->
+    </div>
+    <div class="sum-card sum-green">
+      <span class="sum-lbl">Active</span>
+      <span class="sum-val">{{ activeCount() }}</span>
+    </div>
+    <div class="sum-card sum-muted">
+      <span class="sum-lbl">Inactive</span>
+      <span class="sum-val">{{ inactiveCount() }}</span>
+    </div>
+    <div class="sum-card sum-blue">
+      <span class="sum-lbl">Categories</span>
+      <span class="sum-val">{{ categoryCount() }}</span>  <!-- was usedCategories().length - 1 -->
+    </div>
+  </div>
+
+  <!-- Category filter tabs -->
+  <div class="cat-tabs-bar" *ngIf="usedCategories().length > 2">
+    <button
+      *ngFor="let cat of usedCategories(); trackBy: trackByCat"
+      class="cat-tab"
+      [class.cat-tab-active]="filterCategory() === cat"
+      (click)="onCategoryFilter(cat)">
+      {{ cat }}
+      <span class="cat-count">{{ categoryCount_map().get(cat) ?? 0 }}</span>
+    </button>
+  </div>
+
+  <!-- Filters bar -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Search by name, category, unit…"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="onSearchInput($event)" />
+      <button class="search-clear" *ngIf="searchQuery()" (click)="searchQuery.set(''); onFilterChange()">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <div class="seg-ctrl">
+      <button [class.seg-on]="filterStatus()==='all'"      (click)="filterStatus.set('all'); onFilterChange()">All</button>
+      <button [class.seg-on]="filterStatus()==='active'"   (click)="filterStatus.set('active'); onFilterChange()">Active</button>
+      <button [class.seg-on]="filterStatus()==='inactive'" (click)="filterStatus.set('inactive'); onFilterChange()">Inactive</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-row" *ngIf="isLoading()">
+    <div class="spin"></div><span>Loading products…</span>
+  </div>
+
+  <ng-container *ngIf="!isLoading()">
+
+    <!-- DESKTOP TABLE — FIX 3: one-line name, hidden columns -->
+    <div class="table-wrap desktop-only">
+      <table class="prod-table">
+        <thead>
+          <tr>
+            <th class="th-num">#</th>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Unit</th>
+            <th>Capacity / Size</th>
+            <th class="th-r">Sell Price</th>
+            <th class="th-r">Buy Price</th>
+            <!-- Hidden by default, visible in edit context via CSS class -->
+            <th class="th-r col-hidden">Stock</th>
+            <th class="th-r col-hidden">Min Alert</th>
+            <th class="th-r col-hidden">Orders</th>
+            <th class="th-c">Status</th>
+            <th class="th-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of pagedProducts(); let i = index; trackBy: trackById"
+              [class.row-inactive]="!p.active">
+            <td class="td-num">{{ (currentPage()-1)*pageSize + i + 1 }}</td>
+            <td>
+              <!-- FIX 3: single-line name, no wrapping -->
+              <div class="prod-name-cell">
+                <div class="prod-icon"><i class="bi bi-box-seam"></i></div>
+                <div class="prod-name-info">
+                  <span class="prod-name">{{ p.name }}</span>
+                  <span class="prod-unit-tag">{{ p.unitType }}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="cat-badge" *ngIf="p.category">{{ p.category }}</span>
+              <span class="no-val" *ngIf="!p.category">—</span>
+            </td>
+            <td><span class="unit-badge">{{ p.unitType }}</span></td>
+            <td>
+              <span class="cap-tag" *ngIf="p.capacity">{{ p.capacity }}</span>
+              <span class="no-val" *ngIf="!p.capacity">—</span>
+            </td>
+            <td class="td-r price-col">₹{{ p.sellingPrice }}</td>
+            <td class="td-r">₹{{ p.purchasePrice }}</td>
+            <!-- Hidden columns -->
+            <td class="td-r col-hidden" [class.stock-low]="p.currentStock <= p.minStockAlert">
+              {{ p.currentStock }}
+              <i class="bi bi-exclamation-triangle-fill stock-warn-icon"
+                 *ngIf="p.currentStock <= p.minStockAlert" title="Low stock"></i>
+            </td>
+            <td class="td-r col-hidden muted">{{ p.minStockAlert }}</td>
+            <td class="td-r col-hidden">{{ p.totalOrders | number }}</td>
+            <td class="td-c">
+              <label class="tog">
+                <input type="checkbox" [checked]="p.active" (change)="toggleStatus(p)" />
+                <span class="tog-sl"></span>
+              </label>
+            </td>
+            <td class="td-actions">
+              <button class="btn-edit" (click)="openEdit(p)">
+                <i class="bi bi-pencil"></i> Edit
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="pagedProducts().length === 0">
+            <td colspan="12" class="empty-cell">
+              <div class="empty-state">
+                <i class="bi bi-box-seam"></i>
+                <p>No products found</p>
+                <button class="clear-filters-btn"
+                  *ngIf="filterCategory() !== 'All' || searchQuery()"
+                  (click)="filterCategory.set('All'); searchQuery.set(''); onFilterChange()">
+                  Clear filters
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- MOBILE — Card list -->
+    <div class="mobile-only">
+      <div class="mobile-empty" *ngIf="pagedProducts().length === 0">
+        <i class="bi bi-box-seam"></i>
+        <p>No products found</p>
+        <button class="clear-filters-btn"
+          *ngIf="filterCategory() !== 'All' || searchQuery()"
+          (click)="filterCategory.set('All'); searchQuery.set(''); onFilterChange()">
+          Clear filters
+        </button>
+      </div>
+
+      <div class="product-cards">
+        <div class="product-card"
+          *ngFor="let p of pagedProducts(); trackBy: trackById"
+          [class.card-inactive]="!p.active">
+
+          <div class="pc-header">
+            <div class="pc-icon" [class.pc-icon-inactive]="!p.active">
+              <i class="bi bi-box-seam"></i>
+            </div>
+            <div class="pc-title-group">
+              <span class="pc-name">{{ p.name }}</span>
+              <div class="pc-badges">
+                <span class="cat-badge" *ngIf="p.category">{{ p.category }}</span>
+                <span class="unit-badge">{{ p.unitType }}</span>
+                <span class="cap-tag" *ngIf="p.capacity">{{ p.capacity }}</span>
+              </div>
+            </div>
+            <label class="tog pc-toggle"
+              [title]="p.active ? 'Active — tap to deactivate' : 'Tap to activate'">
+              <input type="checkbox" [checked]="p.active" (change)="toggleStatus(p)" />
+              <span class="tog-sl"></span>
+            </label>
+          </div>
+
+          <div class="pc-low-stock" *ngIf="p.currentStock <= p.minStockAlert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Low stock — {{ p.currentStock }} left (min {{ p.minStockAlert }})
+          </div>
+
+          <div class="pc-stats">
+            <div class="pc-stat">
+              <span class="pc-stat-lbl">Sell Price</span>
+              <span class="pc-stat-val pc-price">₹{{ p.sellingPrice }}</span>
+            </div>
+            <div class="pc-stat">
+              <span class="pc-stat-lbl">Buy Price</span>
+              <span class="pc-stat-val">₹{{ p.purchasePrice }}</span>
+            </div>
+            <div class="pc-stat">
+              <span class="pc-stat-lbl">Stock</span>
+              <span class="pc-stat-val" [class.val-danger]="p.currentStock <= p.minStockAlert">
+                {{ p.currentStock }}
+              </span>
+            </div>
+            <div class="pc-stat">
+              <span class="pc-stat-lbl">Orders</span>
+              <span class="pc-stat-val">{{ p.totalOrders | number }}</span>
+            </div>
+          </div>
+
+          <div class="pc-footer">
+            <span class="pc-chip" [class.chip-active]="p.active" [class.chip-inactive]="!p.active">
+              <i class="bi"
+                [class.bi-check-circle-fill]="p.active"
+                [class.bi-pause-circle-fill]="!p.active"></i>
+              {{ p.active ? 'Active' : 'Inactive' }}
+            </span>
+            <button class="btn-edit-mobile" (click)="openEdit(p)">
+              <i class="bi bi-pencil-fill"></i> Edit
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
+
+  <!-- Pagination -->
+  <div class="pagination-bar" *ngIf="!isLoading() && totalPages() > 1">
+    <button class="pg-btn" (click)="goToPage(currentPage()-1)" [disabled]="currentPage()===1">
+      <i class="bi bi-chevron-left"></i>
+    </button>
+    <button class="pg-btn" *ngFor="let p of pages()"
+      [class.pg-active]="p===currentPage()" (click)="goToPage(p)">{{ p }}</button>
+    <button class="pg-btn" (click)="goToPage(currentPage()+1)" [disabled]="currentPage()===totalPages()">
+      <i class="bi bi-chevron-right"></i>
+    </button>
+    <span class="pg-info">{{ summaryTotal() }} products · Page {{ currentPage() }} of {{ totalPages() }}</span>
+  </div>
+
+</div>
+
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-mask" *ngIf="showModal()" (click)="closeModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+
+    <div class="modal-hdr">
+      <div class="modal-hdr-info">
+        <h3>{{ editingProduct() ? 'Edit Product' : 'Add Product' }}</h3>
+        <p>{{ editingProduct() ? 'Update product details below' : 'Fill in the details to add a new product' }}</p>
+      </div>
+      <button class="modal-x" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-grid">
+
+        <div class="fg fg-full">
+          <label>Product Name <span class="req">*</span></label>
+          <input class="fi" type="text" placeholder="e.g. 20L Water Can" [(ngModel)]="form.name" />
+        </div>
+
+        <div class="fg">
+          <label>Category</label>
+          <select class="fi" [(ngModel)]="form.category">
+            <option value="">— No category —</option>
+            <option *ngFor="let cat of categories()" [value]="cat">{{ cat }}</option>
+          </select>
+          <span class="fi-hint">Based on your shop type</span>
+        </div>
+
+        <div class="fg">
+          <label>Unit Type <span class="req">*</span></label>
+          <select class="fi" [(ngModel)]="form.unitType">
+            <option *ngFor="let u of unitTypes()" [value]="u">{{ u }}</option>
+          </select>
+          <span class="fi-hint">e.g. Piece, Kg, Litre, Pack…</span>
+        </div>
+
+        <div class="fg">
+          <label>Capacity / Size <span class="opt">(optional)</span></label>
+          <input class="fi" type="text" placeholder="e.g. 20L, 500g, Large" [(ngModel)]="form.capacity" />
+          <span class="fi-hint">Leave blank if not applicable</span>
+        </div>
+
+        <div class="fg">
+          <label>Selling Price (₹) <span class="req">*</span></label>
+          <div class="price-inp-wrap">
+            <span class="price-sym">₹</span>
+            <input class="fi fi-price" type="number" min="0" placeholder="0" [(ngModel)]="form.sellingPrice" />
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Purchase / Cost Price (₹)</label>
+          <div class="price-inp-wrap">
+            <span class="price-sym">₹</span>
+            <input class="fi fi-price" type="number" min="0" placeholder="0" [(ngModel)]="form.purchasePrice" />
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Min Stock Alert</label>
+          <input class="fi" type="number" min="0" placeholder="e.g. 20" [(ngModel)]="form.minStockAlert" />
+          <span class="fi-hint">Alert when stock falls below this</span>
+        </div>
+
+        <!-- Stock info — visible in edit mode only, read-only -->
+        <div class="fg" *ngIf="editingProduct()">
+          <label>Current Stock</label>
+          <div class="stock-info-box">
+            <span class="stock-info-val"
+              [class.stock-info-low]="(editingProduct()?.currentStock ?? 0) <= (editingProduct()?.minStockAlert ?? 0)">
+              {{ editingProduct()?.currentStock ?? 0 }} units
+            </span>
+            <span class="stock-info-orders">{{ editingProduct()?.totalOrders ?? 0 }} total orders</span>
+          </div>
+          <span class="fi-hint">Stock is managed via Inventory — adjust from the Inventory page</span>
+        </div>
+
+        <div class="fg">
+          <label>Status</label>
+          <div class="tog-row">
+            <label class="tog">
+              <input type="checkbox" [(ngModel)]="form.active" />
+              <span class="tog-sl"></span>
+            </label>
+            <span class="tog-txt" [class.tog-active]="form.active" [class.tog-inactive]="!form.active">
+              {{ form.active ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-save" (click)="save()" [disabled]="isSaving()">
+        <span class="spin-sm" *ngIf="isSaving()"></span>
+        <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+        {{ editingProduct() ? 'Update Product' : 'Add Product' }}
+      </button>
+    </div>
+
+  </div>
+</div>

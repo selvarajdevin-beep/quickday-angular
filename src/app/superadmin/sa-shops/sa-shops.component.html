@@ -1,0 +1,270 @@
+<!-- sa-shops.component.html -->
+<div class="sa-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'"
+                    [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="sa-page-header">
+    <div>
+      <h2 class="sa-page-title"><i class="bi bi-grid-fill sa-title-icon"></i> Manage Shops</h2>
+      <p class="sa-page-sub">{{ totalCount() }} registered businesses</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="sa-filter-bar">
+    <div class="sa-search-wrap">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Search by name, owner or phone…"
+        [ngModel]="searchQuery()" (ngModelChange)="onSearch($event)" />
+    </div>
+    <select class="sa-select" [ngModel]="filterPlan()"
+      (ngModelChange)="filterPlan.set($event); onFilterChange()">
+      <option value="">All Plans</option>
+      <option *ngFor="let p of plans" [value]="p">{{ p }}</option>
+    </select>
+    <select class="sa-select" [ngModel]="filterStatus()"
+      (ngModelChange)="filterStatus.set($event); onFilterChange()">
+      <option *ngFor="let s of statuses" [value]="s.value">{{ s.label }}</option>
+    </select>
+  </div>
+
+  <!-- Loading -->
+  <div class="sa-loading" *ngIf="isLoading()"><div class="spin"></div><span>Loading…</span></div>
+
+  <!-- Shop list -->
+  <ng-container *ngIf="!isLoading()">
+    <div class="sa-shops-grid">
+      <div class="sa-shop-card"
+        *ngFor="let shop of shops(); trackBy: trackById"
+        (click)="openDrawer(shop)">
+
+        <!-- Avatar + Name -->
+        <div class="ssc-top">
+          <div class="ssc-avatar" [style.background]="avatarColor(shop.businessAccountId)">
+            {{ initials(shop.businessName) }}
+          </div>
+          <div class="ssc-info">
+            <div class="ssc-name">{{ shop.businessName }}</div>
+            <div class="ssc-owner">{{ shop.ownerName }}</div>
+            <div class="ssc-type" *ngIf="shop.shopType">
+              <i class="bi bi-shop"></i> {{ shop.shopType }}
+            </div>
+          </div>
+          <!-- Status badge -->
+          <span class="ssc-badge" [class]="statusClass(shop)">
+            {{ statusLabel(shop) }}
+          </span>
+        </div>
+
+        <!-- Plan + dates -->
+        <div class="ssc-sub-row">
+          <span class="ssc-plan" [class]="planClass(shop.subscriptionPlan)">
+            {{ shop.subscriptionPlan }}
+          </span>
+          <span class="ssc-expiry">
+            <i class="bi bi-calendar-x"></i>
+            {{ fmtDate(shop.subscriptionExpiry) }}
+          </span>
+          <span class="ssc-users">
+            <i class="bi bi-people-fill"></i> {{ shop.userCount }}
+          </span>
+        </div>
+
+        <!-- Actions -->
+        <div class="ssc-actions" (click)="$event.stopPropagation()">
+          <button class="ssc-btn ssc-btn-edit" (click)="openEdit(shop, $event)"
+            title="Edit subscription">
+            <i class="bi bi-calendar2-week"></i> Edit Plan
+          </button>
+          <button class="ssc-btn"
+            [class.ssc-btn-deact]="shop.isActive"
+            [class.ssc-btn-act]="!shop.isActive"
+            (click)="toggleStatus(shop, $event)"
+            [title]="shop.isActive ? 'Deactivate' : 'Activate'">
+            <i class="bi" [class.bi-pause-circle]="shop.isActive"
+                          [class.bi-play-circle]="!shop.isActive"></i>
+            {{ shop.isActive ? 'Deactivate' : 'Activate' }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="sa-empty" *ngIf="shops().length === 0">
+      <i class="bi bi-shop"></i>
+      <p>No shops found</p>
+      <span>Try adjusting your filters</span>
+    </div>
+
+    <!-- Pagination -->
+    <div class="sa-pagination" *ngIf="totalPages() > 1">
+      <button class="pg-btn" [disabled]="currentPage()===1" (click)="goToPage(currentPage()-1)">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <button class="pg-btn" *ngFor="let p of pages()"
+        [class.pg-active]="p===currentPage()" (click)="goToPage(p)">{{ p }}</button>
+      <button class="pg-btn" [disabled]="currentPage()===totalPages()" (click)="goToPage(currentPage()+1)">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <span class="pg-info">{{ totalCount() }} shops · Page {{ currentPage() }}/{{ totalPages() }}</span>
+    </div>
+  </ng-container>
+
+</div>
+
+<!-- ══ Detail Drawer ══════════════════════════════════════════════════════════ -->
+<div class="sa-drawer-mask" *ngIf="showDrawer()" (click)="closeDrawer()">
+  <div class="sa-drawer" (click)="$event.stopPropagation()">
+    <div class="sa-drawer-hdr">
+      <h3>Shop Details</h3>
+      <button (click)="closeDrawer()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="sa-drawer-loading" *ngIf="drawerLoading()">
+      <div class="spin"></div>
+    </div>
+
+    <ng-container *ngIf="drawerShop() && !drawerLoading()">
+      <div class="sa-drawer-body">
+        <div class="sdb-avatar" [style.background]="avatarColor(drawerShop()!.businessAccountId)">
+          {{ initials(drawerShop()!.businessName) }}
+        </div>
+        <div class="sdb-name">{{ drawerShop()!.businessName }}</div>
+        <div class="sdb-type">{{ drawerShop()!.shopType }}</div>
+
+        <div class="sdb-badges">
+          <span class="ssc-badge" [class]="statusClass(drawerShop()!)">
+            {{ statusLabel(drawerShop()!) }}
+          </span>
+          <span class="ssc-plan" [class]="planClass(drawerShop()!.subscriptionPlan)">
+            {{ drawerShop()!.subscriptionPlan }}
+          </span>
+        </div>
+
+        <div class="sdb-rows">
+          <div class="sdb-row"><i class="bi bi-person-fill"></i><span>{{ drawerShop()!.ownerName }}</span></div>
+          <div class="sdb-row" *ngIf="drawerShop()!.businessPhone">
+            <i class="bi bi-telephone-fill"></i><span>{{ drawerShop()!.businessPhone }}</span>
+          </div>
+          <div class="sdb-row" *ngIf="drawerShop()!.businessEmail">
+            <i class="bi bi-envelope-fill"></i><span>{{ drawerShop()!.businessEmail }}</span>
+          </div>
+          <div class="sdb-row" *ngIf="drawerShop()!.address">
+            <i class="bi bi-geo-alt-fill"></i><span>{{ drawerShop()!.address }}</span>
+          </div>
+          <div class="sdb-row" *ngIf="drawerShop()!.gstin">
+            <i class="bi bi-file-earmark-text"></i><span>{{ drawerShop()!.gstin }}</span>
+          </div>
+        </div>
+
+        <div class="sdb-stats">
+          <div class="sdb-stat">
+            <div class="sdb-stat-val">{{ drawerShop()!.userCount }}</div>
+            <div class="sdb-stat-lbl">Users</div>
+          </div>
+          <div class="sdb-stat">
+            <div class="sdb-stat-val">{{ drawerShop()!.totalOrders }}</div>
+            <div class="sdb-stat-lbl">Orders</div>
+          </div>
+          <div class="sdb-stat">
+            <div class="sdb-stat-val">{{ drawerShop()!.daysLeft < 0 ? 0 : drawerShop()!.daysLeft }}</div>
+            <div class="sdb-stat-lbl">Days left</div>
+          </div>
+        </div>
+
+        <div class="sdb-sub-box">
+          <div class="sdb-sub-row">
+            <span>Start Date</span>
+            <strong>{{ fmtDate(drawerShop()!.subscriptionStartDate) }}</strong>
+          </div>
+          <div class="sdb-sub-row">
+            <span>Expiry Date</span>
+            <strong>{{ fmtDate(drawerShop()!.subscriptionExpiry) }}</strong>
+          </div>
+          <div class="sdb-sub-row">
+            <span>Registered</span>
+            <strong>{{ fmtDate(drawerShop()!.createdAt) }}</strong>
+          </div>
+        </div>
+
+        <div class="sdb-actions">
+          <button class="ssc-btn ssc-btn-edit"
+            (click)="closeDrawer(); openEdit(drawerShop()!, $event)">
+            <i class="bi bi-calendar2-week"></i> Edit Subscription
+          </button>
+          <button class="ssc-btn"
+            [class.ssc-btn-deact]="drawerShop()!.isActive"
+            [class.ssc-btn-act]="!drawerShop()!.isActive"
+            (click)="toggleStatus(drawerShop()!, $event)">
+            <i class="bi" [class.bi-pause-circle]="drawerShop()!.isActive"
+                          [class.bi-play-circle]="!drawerShop()!.isActive"></i>
+            {{ drawerShop()!.isActive ? 'Deactivate Shop' : 'Activate Shop' }}
+          </button>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</div>
+
+<!-- ══ Edit Subscription Modal ════════════════════════════════════════════════ -->
+<div class="modal-mask" *ngIf="showEditModal()" (click)="closeEdit()">
+  <div class="sa-modal" (click)="$event.stopPropagation()">
+    <div class="modal-hdr">
+      <h3><i class="bi bi-calendar2-week"></i> Edit Subscription</h3>
+      <button (click)="closeEdit()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="modal-body">
+      <div class="sam-shop-name">{{ editingShop()?.businessName }}</div>
+
+      <div class="fg">
+        <label>Subscription Plan</label>
+        <div class="sam-plan-grid">
+          <button *ngFor="let p of plans"
+            class="sam-plan-btn"
+            [class.sam-plan-active]="editForm.subscriptionPlan === p"
+            [class.plan-free]="p==='Free'"
+            [class.plan-basic]="p==='Basic'"
+            [class.plan-pro]="p==='Pro'"
+            (click)="editForm.subscriptionPlan = p">
+            {{ p }}
+          </button>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>Start Date <span class="req">*</span></label>
+        <input class="fi" type="date" [(ngModel)]="editForm.subscriptionStartDate" />
+      </div>
+
+      <div class="fg">
+        <label>Expiry Date <span class="req">*</span></label>
+        <input class="fi" type="date" [(ngModel)]="editForm.subscriptionExpiry" />
+      </div>
+
+      <div class="sam-duration"
+        *ngIf="editForm.subscriptionStartDate && editForm.subscriptionExpiry">
+        <i class="bi bi-clock-history"></i>
+        Duration: <strong>{{ _calcDays(editForm.subscriptionStartDate, editForm.subscriptionExpiry) }} days</strong>
+      </div>
+    </div>
+
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeEdit()">Cancel</button>
+      <button class="btn-save" (click)="saveSubscription()" [disabled]="isSaving()">
+        <span class="spin-sm" *ngIf="isSaving()"></span>
+        <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+        {{ isSaving() ? 'Saving…' : 'Save Subscription' }}
+      </button>
+    </div>
+  </div>
+</div>

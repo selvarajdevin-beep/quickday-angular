@@ -1,0 +1,578 @@
+<div class="settings-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Settings</h2>
+      <p class="page-subtitle">Business profile, appearance and access control</p>
+    </div>
+  </div>
+
+  <div class="loading-row" *ngIf="isLoading()"><div class="spin"></div><span>Loading…</span></div>
+
+  <div class="settings-layout" *ngIf="!isLoading()">
+
+    <!-- ══ Left Nav ══ -->
+    <nav class="settings-nav">
+      <button class="snav-item" [class.snav-active]="activeSection()==='business'" (click)="activeSection.set('business')">
+        <i class="bi bi-building"></i><span class="snav-label">Business Info</span>
+      </button>
+      <button class="snav-item" [class.snav-active]="activeSection()==='theme'" (click)="activeSection.set('theme')">
+        <i class="bi bi-palette-fill"></i><span class="snav-label">Appearance</span>
+      </button>
+      <button class="snav-item" [class.snav-active]="activeSection()==='invoice'" (click)="activeSection.set('invoice')">
+        <i class="bi bi-receipt-cutoff"></i><span class="snav-label">Invoice</span>
+      </button>
+      <button class="snav-item" [class.snav-active]="activeSection()==='permissions'" (click)="activeSection.set('permissions')">
+        <i class="bi bi-shield-lock-fill"></i><span class="snav-label">Permissions</span>
+      </button>
+      <button class="snav-item" [class.snav-active]="activeSection()==='plan'" (click)="activeSection.set('plan')">
+        <i class="bi bi-star-fill"></i><span class="snav-label">Subscription</span>
+      </button>
+      <button class="snav-item" [class.snav-active]="activeSection()==='data'" (click)="activeSection.set('data')">
+        <i class="bi bi-database-fill"></i><span class="snav-label">Data &amp; Backup</span>
+      </button>
+    </nav>
+
+    <!-- ══ Content Area ══ -->
+    <div class="settings-content">
+
+      <!-- ══ BUSINESS INFO ════════════════════════════════ -->
+      <div class="section-card" *ngIf="activeSection()==='business'">
+        <div class="sc-hdr">
+          <div class="sc-icon sc-blue"><i class="bi bi-building"></i></div>
+          <div><h3>Business Information</h3><p>Changes reflect in the sidebar, footer and bills</p></div>
+        </div>
+        <div class="sc-body">
+          <div class="shop-type-section">
+            <div class="shop-type-label">
+              <i class="bi bi-shop"></i>
+              <div><span class="stl-title">Shop Type</span><span class="stl-hint">Helps personalise the app for your business</span></div>
+              <div class="selected-shop-badge" *ngIf="form.shopType">
+                <i class="bi" [class]="selectedShopTypeIcon()"></i> {{ form.shopType }}
+              </div>
+            </div>
+            <div class="shop-type-grid">
+              <button *ngFor="let type of shopTypes" class="shop-type-tile" [class.stt-selected]="form.shopType === type" (click)="form.shopType = type" [title]="type">
+                <i class="bi" [class]="shopTypeIcons[type]"></i><span>{{ type }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="section-divider"></div>
+          <div class="form-grid">
+            <div class="fg">
+              <label>Business Name <span class="req">*</span></label>
+              <input class="fi" type="text" placeholder="e.g. AquaPure Water Suppliers" [(ngModel)]="form.businessName" />
+              <span class="field-hint">Shown in sidebar, footer and all bills</span>
+            </div>
+            <div class="fg">
+              <label>Owner Name</label>
+              <input class="fi" type="text" placeholder="Your full name" [(ngModel)]="form.ownerName" />
+            </div>
+            <div class="fg">
+              <label>Phone</label>
+              <input class="fi" type="tel" placeholder="10-digit mobile" [(ngModel)]="form.phone" />
+            </div>
+            <div class="fg">
+              <label>Email</label>
+              <input class="fi" type="email" placeholder="business@email.com" [(ngModel)]="form.email" />
+            </div>
+            <div class="fg fg-full">
+              <label>Address</label>
+              <textarea class="fi fi-area" rows="2" placeholder="Full business address" [(ngModel)]="form.address"></textarea>
+            </div>
+            <div class="fg">
+              <label>GSTIN (optional)</label>
+              <input class="fi" type="text" placeholder="e.g. 33AABCA1234A1Z5" [(ngModel)]="form.gstin" />
+            </div>
+            <div class="fg">
+              <label>Currency</label>
+              <div class="currency-row">
+                <select class="fi" [(ngModel)]="form.currency">
+                  <option *ngFor="let c of currencyOptions" [value]="c.value">{{ c.label }}</option>
+                </select>
+                <div class="currency-badge">
+                  <span class="cur-sym">{{ previewCurrencySymbol() }}</span>
+                  <span class="cur-code">{{ form.currency }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sc-footer">
+          <button class="btn-save" (click)="save()" [disabled]="isSaving()">
+            <span class="spin-sm" *ngIf="isSaving()"></span>
+            <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+            {{ isSaving() ? 'Saving…' : 'Save Changes' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ══ APPEARANCE ══════════════════════════════════ -->
+      <div class="section-card" *ngIf="activeSection()==='theme'">
+        <div class="sc-hdr">
+          <div class="sc-icon sc-purple"><i class="bi bi-palette-fill"></i></div>
+          <div><h3>Appearance</h3><p>Changes apply instantly — Save to persist across sessions</p></div>
+        </div>
+        <div class="sc-body">
+          <label class="fg-label">Theme Color</label>
+          <p class="field-hint mb8">Applied to sidebar, buttons and all accents throughout the app.</p>
+          <div class="color-grid">
+            <button *ngFor="let c of themeColors" class="color-swatch" [style.background]="c.value"
+              [class.swatch-selected]="form.themeColor === c.value"
+              (click)="selectTheme(c.value)" [title]="c.label">
+              <i class="bi bi-check-lg" *ngIf="form.themeColor === c.value"></i>
+            </button>
+          </div>
+          <div class="custom-color-row">
+            <span class="fg-label-sm">Custom hex</span>
+            <div class="color-input-wrap">
+              <input type="color" class="color-picker" [ngModel]="form.themeColor" (ngModelChange)="onThemeInput($event)" />
+              <input type="text" class="fi fi-sm" [ngModel]="form.themeColor" (ngModelChange)="onThemeInput($event)" placeholder="#0057FF" />
+            </div>
+          </div>
+          <div class="theme-preview">
+            <div class="preview-label">Live Preview</div>
+            <div class="preview-ui">
+              <div class="prev-sidebar">
+                <div class="prev-logo" [style.background]="form.themeColor">AE</div>
+                <div class="prev-nav-item prev-active" [style.background]="form.themeColor">Billing</div>
+                <div class="prev-nav-item">Customers</div>
+                <div class="prev-nav-item">Reports</div>
+              </div>
+              <div class="prev-content">
+                <div class="prev-btn" [style.background]="form.themeColor">New Bill</div>
+                <div class="prev-card">
+                  <div class="prev-accent-bar" [style.background]="form.themeColor"></div>
+                  <div class="prev-text"></div><div class="prev-text prev-short"></div>
+                </div>
+                <div class="prev-kpi" [style.border-color]="form.themeColor + '55'">
+                  <div class="prev-kpi-icon" [style.background]="form.themeColor + '22'" [style.color]="form.themeColor">
+                    <i class="bi bi-receipt-cutoff" style="font-size:9px"></i>
+                  </div>
+                  <div class="prev-kpi-lines"><div class="prev-kpi-line"></div><div class="prev-kpi-line short"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sc-footer">
+          <button class="btn-save" (click)="save()" [disabled]="isSaving()">
+            <span class="spin-sm" *ngIf="isSaving()"></span>
+            <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+            Save Appearance
+          </button>
+        </div>
+      </div>
+
+      <!-- ══ INVOICE SETTINGS ════════════════════════════ -->
+      <div class="section-card" *ngIf="activeSection()==='invoice'">
+        <div class="sc-hdr">
+          <div class="sc-icon sc-teal"><i class="bi bi-receipt-cutoff"></i></div>
+          <div><h3>Invoice Settings</h3><p>Configure logo, GST/tax and date format for invoices</p></div>
+        </div>
+        <div class="sc-body">
+
+          <!-- ── Logo Upload ── -->
+          <div class="inv-settings-section">
+            <div class="iss-title"><i class="bi bi-image"></i> Shop Logo</div>
+            <p class="field-hint mb8">Displayed on invoices next to your business name. PNG or JPG, max 2MB.</p>
+            <div class="logo-upload-area">
+              <div class="logo-preview-box" *ngIf="logoPreview()">
+                <img [src]="logoPreview()" alt="Logo preview" class="logo-preview-img" />
+                <button class="logo-remove-btn" (click)="removeLogo()" title="Remove logo"><i class="bi bi-x-lg"></i></button>
+              </div>
+              <label class="logo-upload-zone" *ngIf="!logoPreview()" for="logo-file-input">
+                <i class="bi bi-cloud-arrow-up"></i>
+                <span class="luz-title">{{ logoUploading() ? 'Uploading…' : 'Click to upload logo' }}</span>
+                <span class="luz-hint">PNG, JPG, SVG · Max 2MB</span>
+                <input id="logo-file-input" type="file" accept="image/*" class="logo-file-input" (change)="onLogoFileChange($event)" [disabled]="logoUploading()" />
+              </label>
+              <label class="logo-reupload-btn" *ngIf="logoPreview()" for="logo-file-input-2">
+                <i class="bi bi-arrow-repeat"></i> Change Logo
+                <input id="logo-file-input-2" type="file" accept="image/*" class="logo-file-input" (change)="onLogoFileChange($event)" [disabled]="logoUploading()" />
+              </label>
+            </div>
+            <div class="inv-toggle-row" *ngIf="logoPreview()" style="margin-top:10px">
+              <div class="itr-label">
+                <span class="itr-title">Show logo on invoice</span>
+                <span class="itr-hint">Logo appears next to business name in printed/shared invoices</span>
+              </div>
+              <label class="view-tog">
+                <input type="checkbox" [(ngModel)]="form.showLogoOnInvoice" />
+                <span class="vt-track"><span class="vt-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+
+          <!-- ── Date & Time ── -->
+          <div class="inv-settings-section">
+            <div class="iss-title"><i class="bi bi-calendar3"></i> Invoice Date Format</div>
+            <div class="inv-toggle-row">
+              <div class="itr-label">
+                <span class="itr-title">Show time on invoice date</span>
+                <span class="itr-hint">e.g. "08 April 2026, 03:45 PM" instead of "08 April 2026"</span>
+              </div>
+              <label class="view-tog">
+                <input type="checkbox" [(ngModel)]="form.invoiceShowTime" />
+                <span class="vt-track"><span class="vt-thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+
+          <!-- ── GST Configuration ── -->
+          <div class="inv-settings-section">
+            <div class="iss-title"><i class="bi bi-percent"></i> GST / Tax Configuration</div>
+            <p class="field-hint mb8">Configure tax rates shown on invoices. GST is calculated on the order subtotal.</p>
+            <div class="gst-type-grid">
+              <button *ngFor="let opt of gstTypeOptions"
+                class="gst-type-tile"
+                [class.gst-tile-active]="form.gstType === opt.value"
+                (click)="onGstTypeChange(opt.value)">
+                <i class="bi" [class.bi-x-circle]="opt.value==='None'"
+                              [class.bi-building]="opt.value==='GST'"
+                              [class.bi-arrow-left-right]="opt.value==='IGST'"></i>
+                <span>{{ opt.label }}</span>
+              </button>
+            </div>
+            <div class="gst-rates-section" *ngIf="form.gstType === 'GST'">
+              <div class="gst-rate-banner">
+                <i class="bi bi-info-circle-fill"></i>
+                For intra-state supply. CGST + SGST rates are always equal and together make the total GST %.
+              </div>
+              <div class="form-grid" style="margin-top:12px">
+                <div class="fg">
+                  <label>CGST Rate (%)</label>
+                  <div class="rate-input-wrap">
+                    <input class="fi" type="number" min="0" max="50" step="0.5"
+                      [ngModel]="form.cgstRate" (ngModelChange)="onCgstChange($event)" />
+                    <span class="rate-sym">%</span>
+                  </div>
+                  <span class="field-hint">Central GST — SGST will mirror this value</span>
+                </div>
+                <div class="fg">
+                  <label>SGST Rate (%)</label>
+                  <div class="rate-input-wrap">
+                    <input class="fi" type="number" [ngModel]="form.sgstRate" disabled />
+                    <span class="rate-sym">%</span>
+                  </div>
+                  <span class="field-hint">State GST (auto = CGST value)</span>
+                </div>
+              </div>
+              <div class="gst-total-preview">
+                Total GST on invoice: <strong>{{ (form.cgstRate || 0) + (form.sgstRate || 0) }}%</strong>
+                (CGST {{ form.cgstRate || 0 }}% + SGST {{ form.sgstRate || 0 }}%)
+              </div>
+            </div>
+            <div class="gst-rates-section" *ngIf="form.gstType === 'IGST'">
+              <div class="gst-rate-banner">
+                <i class="bi bi-info-circle-fill"></i>
+                For inter-state supply: a single IGST rate is applied.
+              </div>
+              <div class="form-grid" style="margin-top:12px">
+                <div class="fg">
+                  <label>IGST Rate (%)</label>
+                  <div class="rate-input-wrap">
+                    <input class="fi" type="number" min="0" max="50" step="0.5"
+                      [ngModel]="form.igstRate" (ngModelChange)="form.igstRate=$event" />
+                    <span class="rate-sym">%</span>
+                  </div>
+                  <span class="field-hint">Integrated GST (inter-state)</span>
+                </div>
+              </div>
+              <div class="gst-total-preview">
+                Total GST on invoice: <strong>{{ form.igstRate || 0 }}%</strong> IGST
+              </div>
+            </div>
+            <div class="gst-disabled-notice" *ngIf="form.gstType === 'None'">
+              <i class="bi bi-check-circle-fill"></i>
+              No GST/tax will be shown on invoices. Orders are tax-exempt.
+            </div>
+            <div class="inv-toggle-row" *ngIf="form.gstType !== 'None'" style="margin-top:14px">
+              <div class="itr-label">
+                <span class="itr-title">Show GST breakdown on invoice</span>
+                <span class="itr-hint">Adds CGST/SGST or IGST line items to the invoice totals section</span>
+              </div>
+              <label class="view-tog">
+                <input type="checkbox" [(ngModel)]="form.showGstOnInvoice" />
+                <span class="vt-track"><span class="vt-thumb"></span></span>
+              </label>
+            </div>
+            <div class="gst-invoice-preview" *ngIf="form.gstType !== 'None' && form.showGstOnInvoice">
+              <div class="gip-title">How it looks on invoice (based on ₹1,000 subtotal)</div>
+              <div class="gip-rows">
+                <div class="gip-row"><span>Subtotal</span><span>₹1,000.00</span></div>
+                <ng-container *ngIf="form.gstType === 'GST'">
+                  <div class="gip-row gip-gst"><span>CGST @ {{ form.cgstRate }}%</span><span>₹{{ ((1000 * (form.cgstRate||0)) / 100).toFixed(2) }}</span></div>
+                  <div class="gip-row gip-gst"><span>SGST @ {{ form.sgstRate }}%</span><span>₹{{ ((1000 * (form.sgstRate||0)) / 100).toFixed(2) }}</span></div>
+                </ng-container>
+                <ng-container *ngIf="form.gstType === 'IGST'">
+                  <div class="gip-row gip-gst"><span>IGST @ {{ form.igstRate }}%</span><span>₹{{ ((1000 * (form.igstRate||0)) / 100).toFixed(2) }}</span></div>
+                </ng-container>
+                <div class="gip-divider"></div>
+                <div class="gip-row gip-total">
+                  <span>Total Paid</span>
+                  <span>₹{{ (1000 + (form.gstType==='GST' ? (1000*(form.cgstRate||0)/100)+(1000*(form.sgstRate||0)/100) : (1000*(form.igstRate||0)/100))).toFixed(2) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="sc-footer">
+          <button class="btn-save" (click)="save()" [disabled]="isSaving()">
+            <span class="spin-sm" *ngIf="isSaving()"></span>
+            <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+            {{ isSaving() ? 'Saving…' : 'Save Invoice Settings' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ══ PERMISSIONS ════════════════════════════════ -->
+      <div class="section-card" *ngIf="activeSection()==='permissions'">
+        <div class="sc-hdr">
+          <div class="sc-icon sc-red"><i class="bi bi-shield-lock-fill"></i></div>
+          <div><h3>Role Permissions</h3><p>Enabling/disabling View hides that menu from the sidebar for every user of that role.</p></div>
+        </div>
+        <div class="sc-body">
+          <div class="role-tabs">
+            <button class="role-tab" [class.role-tab-active]="editingRole()==='Admin'" [class.rtab-admin]="editingRole()==='Admin'" (click)="editingRole.set('Admin')">
+              <i class="bi bi-shield-fill-check"></i><div><span>Admin</span><small>Full-access role</small></div>
+            </button>
+            <button class="role-tab" [class.role-tab-active]="editingRole()==='Worker'" [class.rtab-worker]="editingRole()==='Worker'" (click)="editingRole.set('Worker')">
+              <i class="bi bi-person-workspace"></i><div><span>Worker</span><small>Restricted role</small></div>
+            </button>
+          </div>
+          <div class="perm-banner perm-banner-admin" *ngIf="editingRole()==='Admin'">
+            <i class="bi bi-info-circle-fill"></i>
+            <span>Turning <strong>View OFF</strong> hides that menu item from all Admin users instantly.</span>
+          </div>
+          <div class="perm-banner perm-banner-worker" *ngIf="editingRole()==='Worker'">
+            <i class="bi bi-info-circle-fill"></i>
+            <span>Turning <strong>View OFF</strong> hides that menu from all Worker users. Create/Edit/Delete are auto-cleared.</span>
+          </div>
+          <div class="perm-stats-row">
+            <div class="perm-stat"><i class="bi bi-eye-fill"></i><strong>{{ visibleCount() }}</strong> of {{ allModules.length }} modules visible</div>
+            <button class="btn-reset" (click)="resetRoleToDefault()"><i class="bi bi-arrow-counterclockwise"></i> Reset to {{ editingRole() }} defaults</button>
+          </div>
+          <!-- Desktop table -->
+          <div class="perm-table-wrap desktop-only">
+            <table class="perm-table">
+              <thead>
+                <tr>
+                  <th class="pth-module">Module</th>
+                  <th class="pth-action"><div class="pth-inner pth-view"><i class="bi bi-eye-fill"></i> View<br><small>Shows in sidebar</small></div></th>
+                  <th class="pth-action"><div class="pth-inner"><i class="bi bi-plus-circle-fill"></i> Create</div></th>
+                  <th class="pth-action"><div class="pth-inner"><i class="bi bi-pencil-fill"></i> Edit</div></th>
+                  <th class="pth-action"><div class="pth-inner"><i class="bi bi-trash3-fill"></i> Delete</div></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let module of allModules; trackBy: trackByModule"
+                  [class.prow-visible]="getPermForModule(module).canView"
+                  [class.prow-hidden]="!getPermForModule(module).canView">
+                  <td class="ptd-module">
+                    <div class="pmod-cell">
+                      <div class="pmod-icon" [class.pmod-on]="getPermForModule(module).canView"><i class="bi" [class]="moduleIcon(module)"></i></div>
+                      <div>
+                        <div class="pmod-name">{{ module }}</div>
+                        <div class="pmod-hint" *ngIf="!getPermForModule(module).canView">Hidden from sidebar</div>
+                        <div class="pmod-hint pmod-hint-on" *ngIf="getPermForModule(module).canView">Visible in sidebar</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="ptd-check">
+                    <label class="view-tog">
+                      <input type="checkbox" [checked]="getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canView')" />
+                      <span class="vt-track"><span class="vt-thumb"></span></span>
+                    </label>
+                  </td>
+                  <td class="ptd-check"><input type="checkbox" class="perm-check" [checked]="getPermForModule(module).canCreate" [disabled]="!getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canCreate')" /></td>
+                  <td class="ptd-check"><input type="checkbox" class="perm-check" [checked]="getPermForModule(module).canEdit" [disabled]="!getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canEdit')" /></td>
+                  <td class="ptd-check"><input type="checkbox" class="perm-check" [checked]="getPermForModule(module).canDelete" [disabled]="!getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canDelete')" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Mobile cards -->
+          <div class="perm-cards-list mobile-only">
+            <div class="perm-card" *ngFor="let module of allModules; trackBy: trackByModule"
+              [class.pcard-visible]="getPermForModule(module).canView"
+              [class.pcard-hidden]="!getPermForModule(module).canView">
+              <div class="pcard-top">
+                <div class="pmod-icon" [class.pmod-on]="getPermForModule(module).canView"><i class="bi" [class]="moduleIcon(module)"></i></div>
+                <div class="pcard-info">
+                  <div class="pmod-name">{{ module }}</div>
+                  <div class="pmod-hint" *ngIf="!getPermForModule(module).canView">Hidden from sidebar</div>
+                  <div class="pmod-hint pmod-hint-on" *ngIf="getPermForModule(module).canView">Visible in sidebar</div>
+                </div>
+                <label class="view-tog pcard-view-tog">
+                  <input type="checkbox" [checked]="getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canView')" />
+                  <span class="vt-track"><span class="vt-thumb"></span></span>
+                </label>
+              </div>
+              <div class="pcard-actions" [class.pcard-actions-disabled]="!getPermForModule(module).canView">
+                <label class="pchip" [class.pchip-active]="getPermForModule(module).canCreate && getPermForModule(module).canView">
+                  <input type="checkbox" class="pchip-input" [checked]="getPermForModule(module).canCreate" [disabled]="!getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canCreate')" />
+                  <i class="bi bi-plus-circle-fill"></i> Create
+                </label>
+                <label class="pchip" [class.pchip-active]="getPermForModule(module).canEdit && getPermForModule(module).canView">
+                  <input type="checkbox" class="pchip-input" [checked]="getPermForModule(module).canEdit" [disabled]="!getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canEdit')" />
+                  <i class="bi bi-pencil-fill"></i> Edit
+                </label>
+                <label class="pchip" [class.pchip-active]="getPermForModule(module).canDelete && getPermForModule(module).canView">
+                  <input type="checkbox" class="pchip-input" [checked]="getPermForModule(module).canDelete" [disabled]="!getPermForModule(module).canView" (change)="toggleRolePerm(module, 'canDelete')" />
+                  <i class="bi bi-trash3-fill"></i> Delete
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sc-footer">
+          <div class="sc-footer-note"><i class="bi bi-lightning-charge-fill" style="color:var(--warning)"></i> Sidebar updates instantly for all <strong>{{ editingRole() }}</strong> users on save</div>
+          <button class="btn-save" (click)="saveRolePermissions()" [disabled]="isSavingPerms()">
+            <span class="spin-sm" *ngIf="isSavingPerms()"></span>
+            <i class="bi bi-check-lg" *ngIf="!isSavingPerms()"></i>
+            {{ isSavingPerms() ? 'Saving…' : 'Save ' + editingRole() + ' Permissions' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ══ SUBSCRIPTION ════════════════════════════════ -->
+      <div class="section-card" *ngIf="activeSection()==='plan'">
+        <div class="sc-hdr">
+          <div class="sc-icon sc-gold"><i class="bi bi-star-fill"></i></div>
+          <div><h3>Subscription Plan</h3><p>Your current plan and available upgrades</p></div>
+        </div>
+        <div class="sc-body">
+
+          <!-- Current plan banner -->
+          <div class="current-plan-banner">
+            <div class="cpb-left">
+              <span class="cpb-badge" [class]="planClass(settings()!.subscriptionPlan)">
+                {{ settings()!.subscriptionPlan }}
+              </span>
+              <div>
+                <div class="cpb-title">{{ settings()!.subscriptionPlan }} Plan — Active</div>
+                <div class="cpb-dates">
+                  <div class="date-row" *ngIf="settings()!.subscriptionStartDate">
+                    <i class="bi bi-calendar-event"></i>
+                    <span>Start: <strong>{{ settings()!.subscriptionStartDate | date:'d MMM yyyy' }}</strong></span>
+                  </div>
+                  <div class="date-row" *ngIf="settings()!.subscriptionExpiry">
+                    <i class="bi bi-calendar-x"></i>
+                    <span>Expiry: <strong>{{ settings()!.subscriptionExpiry | date:'d MMM yyyy' }}</strong></span>
+                    <span class="days-pill"
+                      [class.expiry-ok]="daysLeft() > 30"
+                      [class.expiry-warn]="daysLeft() <= 30">
+                      {{ daysLeft() }} days left
+                    </span>
+                  </div>
+                  <div class="date-row" *ngIf="subscriptionDuration() > 0">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Duration: <strong>{{ subscriptionDuration() }} days</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ✅ Plan cards — DB driven, skips cards with no price AND no features -->
+          <div class="plan-grid">
+            <ng-container *ngFor="let plan of plans">
+
+              <!-- Only render if price exists OR features exist for this plan -->
+              <ng-container *ngIf="planMonthlyRates[plan] !== undefined || (planFeatures[plan]?.length ?? 0) > 0">
+                <div class="plan-card"
+                     [class.plan-current]="settings()!.subscriptionPlan === plan"
+                     [class.plan-pro-card]="plan === 'Pro'">
+
+                  <div class="plan-card-hdr">
+                    <div class="plan-name">{{ plan }}</div>
+                    <!-- Price from DB — only shown if available -->
+                    <div class="plan-price" *ngIf="planMonthlyRates[plan] !== undefined">
+                      ₹{{ planMonthlyRates[plan] }}<small>/mo</small>
+                    </div>
+                  </div>
+
+                  <!-- Features from DB — only shown if available -->
+                  <ul class="plan-features" *ngIf="(planFeatures[plan]?.length ?? 0) > 0">
+                    <li *ngFor="let feat of planFeatures[plan]">
+                      <i class="bi bi-check-circle-fill"></i> {{ feat }}
+                    </li>
+                  </ul>
+
+                  <button class="plan-btn"
+                    *ngIf="settings()!.subscriptionPlan !== plan"
+                    [class.plan-btn-upgrade]="plan === 'Pro' || plan === 'Basic'">
+                    {{ plan === 'Free' ? 'Downgrade' : 'Upgrade to ' + plan }}
+                  </button>
+                  <div class="plan-current-chip" *ngIf="settings()!.subscriptionPlan === plan">
+                    <i class="bi bi-check-circle-fill"></i> Current Plan
+                  </div>
+
+                </div>
+              </ng-container>
+
+            </ng-container>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ DATA & BACKUP ═══════════════════════════════ -->
+      <div class="section-card" *ngIf="activeSection()==='data'">
+        <div class="sc-hdr">
+          <div class="sc-icon sc-teal"><i class="bi bi-database-fill"></i></div>
+          <div><h3>Data &amp; Backup</h3><p>Export your data or manage storage</p></div>
+        </div>
+        <div class="sc-body data-section">
+          <div class="data-action-card">
+            <div class="dac-icon dac-blue"><i class="bi bi-download"></i></div>
+            <div class="dac-body"><div class="dac-title">Export All Data</div><div class="dac-desc">Download a full backup of customers, orders, expenses and inventory.</div></div>
+            <button class="btn-export" (click)="exportData()" [disabled]="isExporting()">
+              <span class="spin-sm" *ngIf="isExporting()"></span>
+              <i class="bi bi-download" *ngIf="!isExporting()"></i>
+              {{ isExporting() ? 'Exporting…' : 'Export Now' }}
+            </button>
+          </div>
+          <div class="data-action-card">
+            <div class="dac-icon dac-green"><i class="bi bi-cloud-arrow-up-fill"></i></div>
+            <div class="dac-body"><div class="dac-title">Cloud Backup</div><div class="dac-desc">Automatic daily backup to cloud. Available on Pro plan.</div></div>
+            <button class="btn-locked" disabled><i class="bi bi-lock-fill"></i> Pro Only</button>
+          </div>
+          <div class="data-action-card dac-danger-card">
+            <div class="dac-icon dac-red"><i class="bi bi-trash3-fill"></i></div>
+            <div class="dac-body"><div class="dac-title">Clear All Data</div><div class="dac-desc dac-desc-red">Permanently deletes all orders, customers, expenses and inventory. Cannot be undone.</div></div>
+            <button class="btn-danger-action" (click)="showClearConfirm.set(true)"><i class="bi bi-trash3"></i> Clear Data</button>
+          </div>
+          <div class="danger-confirm-box" *ngIf="showClearConfirm()">
+            <div class="dcb-hdr"><i class="bi bi-exclamation-triangle-fill"></i><strong>Are you absolutely sure?</strong></div>
+            <p>Type <code>DELETE</code> below to confirm. This cannot be reversed.</p>
+            <input class="fi" type="text" placeholder="Type DELETE to confirm" [ngModel]="clearConfirmText()" (ngModelChange)="clearConfirmText.set($event)" />
+            <div class="dcb-btns">
+              <button class="btn-cancel" (click)="showClearConfirm.set(false); clearConfirmText.set('')">Cancel</button>
+              <button class="btn-delete-confirm" [disabled]="clearConfirmText() !== 'DELETE'"
+                (click)="toast('Disabled in demo mode','error'); showClearConfirm.set(false); clearConfirmText.set('')">
+                <i class="bi bi-trash3"></i> Yes, Delete Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /settings-content -->
+  </div><!-- /settings-layout -->
+</div><!-- /settings-page -->

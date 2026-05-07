@@ -1,0 +1,330 @@
+<div class="expenses-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Expenses</h2>
+      <p class="page-subtitle">Track petrol, salary, maintenance &amp; more</p>
+    </div>
+    <button class="btn-add" (click)="openAdd()">
+      <i class="bi bi-plus-lg"></i>
+      <span class="btn-add-label">Add Expense</span>
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-row" *ngIf="isLoading()">
+    <div class="spin"></div><span>Loading…</span>
+  </div>
+
+  <ng-container *ngIf="!isLoading()">
+
+    <!-- ══ DASHBOARD ══════════════════════════════════════════════ -->
+
+    <!-- DESKTOP dashboard: side-by-side (hidden on mobile) -->
+    <div class="dash-row" *ngIf="!isMobile()">
+      <div class="month-card">
+        <div class="mc-lbl">This Month's Expenses</div>
+        <div class="mc-val">₹{{ summary().totalThisMonth | number }}</div>
+        <div class="mc-sub" *ngIf="topCategory()">
+          Top: <strong>{{ topCategory()!.type }}</strong> — ₹{{ topCategory()!.amount | number }}
+        </div>
+      </div>
+      <div class="bk-card">
+        <div class="bk-title">This Month Breakdown</div>
+        <div class="bk-bars">
+          <div class="bk-row" *ngFor="let item of summary().byType; trackBy: trackBySummaryType">
+            <div class="bk-icon" [style.background]="typeMeta[item.type]?.bg" [style.color]="typeMeta[item.type]?.color">
+              <i class="bi" [class]="typeMeta[item.type]?.icon"></i>
+            </div>
+            <div class="bk-info">
+              <div class="bk-top">
+                <span class="bk-type">{{ item.type }}</span>
+                <span class="bk-amt">₹{{ item.amount | number }}</span>
+              </div>
+              <div class="bk-bg">
+                <div class="bk-fill" [style.width.%]="getTypePercent(item.type)" [style.background]="typeMeta[item.type]?.color"></div>
+              </div>
+            </div>
+            <span class="bk-pct">{{ getTypePercent(item.type) }}%</span>
+          </div>
+          <div class="bk-empty" *ngIf="summary().byType.length === 0">No expenses this month</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOBILE dashboard: stacked summary card + compact breakdown -->
+    <div class="mobile-dash" *ngIf="isMobile()">
+      <div class="month-card">
+        <div class="mc-lbl">This Month's Expenses</div>
+        <div class="mc-val">₹{{ summary().totalThisMonth | number }}</div>
+        <div class="mc-sub" *ngIf="topCategory()">
+          Top: <strong>{{ topCategory()!.type }}</strong> — ₹{{ topCategory()!.amount | number }}
+        </div>
+      </div>
+
+      <!-- Compact type chips for mobile — tappable to filter -->
+      <div class="mobile-type-chips" *ngIf="summary().byType.length > 0">
+        <button class="mtc-chip"
+          *ngFor="let item of summary().byType; trackBy: trackBySummaryType"
+          [style.--ac]="typeMeta[item.type]?.color"
+          [style.--bg]="typeMeta[item.type]?.bg"
+          [class.mtc-active]="filterType() === item.type"
+          (click)="filterType.set(filterType() === item.type ? 'all' : item.type); onFilter()">
+          <i class="bi" [class]="typeMeta[item.type]?.icon" [style.color]="typeMeta[item.type]?.color"></i>
+          <span class="mtc-label">{{ item.type }}</span>
+          <span class="mtc-amt">₹{{ item.amount | number }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ DATE FILTERS ═══════════════════════════════════════════ -->
+    <div class="filter-row">
+      <div class="date-quick">
+        <button [class.dq-on]="dateFilter()==='today'" (click)="setDateFilter('today')">Today</button>
+        <button [class.dq-on]="dateFilter()==='week'"  (click)="setDateFilter('week')">7 Days</button>
+        <button [class.dq-on]="dateFilter()==='month'" (click)="setDateFilter('month')">Month</button>
+        <button [class.dq-on]="dateFilter()==='custom'">Custom</button>
+      </div>
+      <div class="date-range">
+        <div class="di"><i class="bi bi-calendar3"></i><input type="date" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event)" /></div>
+        <span class="date-sep">to</span>
+        <div class="di"><i class="bi bi-calendar3"></i><input type="date" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event)" /></div>
+        <button class="btn-apply" (click)="applyCustomRange()">Apply</button>
+      </div>
+    </div>
+
+    <!-- ══ TYPE + SEARCH FILTERS ═════════════════════════════════ -->
+    <div class="filter-row2">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Search expenses…"
+          [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event); onFilter()" />
+      </div>
+
+      <!-- Type filter chips — desktop shows all, mobile shows compact -->
+      <div class="type-filters">
+        <button class="tf-btn" [class.tf-on]="filterType()==='all'"
+          (click)="filterType.set('all'); onFilter()">All</button>
+        <button class="tf-btn"
+          *ngFor="let t of expenseTypes; trackBy: trackByType"
+          [class.tf-on]="filterType()===t"
+          [style.--ac]="typeMeta[t]?.color"
+          (click)="filterType.set(t); onFilter()">
+          <i class="bi" [class]="typeMeta[t]?.icon" [style.color]="typeMeta[t]?.color"></i>
+          <span class="tf-label">{{ t }}</span>
+        </button>
+      </div>
+
+      <!-- <div class="filter-summary"> -->
+        <!-- <strong>{{ filteredExpenses().length }}</strong> entries · Total: <strong>₹{{ filteredTotal() | number }}</strong> -->
+        <!-- <strong>{{ totalCount() }}</strong> entries · Total: <strong>₹{{ filteredTotal() | number }}</strong> -->
+      <!-- </div> -->
+
+      <div class="filter-summary">
+        <strong>{{ totalCount() }}</strong> entries
+        &nbsp;·&nbsp;
+        <span class="fs-label">All:</span> <strong>₹{{ filteredTotalAmount() | number }}</strong>
+        <span class="fs-sep">|</span>
+        <span class="fs-label">Page:</span> <strong>₹{{ filteredTotal() | number }}</strong>
+      </div>
+
+    </div>
+
+    <!-- ══ EXPENSES LIST ══════════════════════════════════════════ -->
+    <div class="expenses-list">
+
+      <!-- DESKTOP item (shown when !isMobile) -->
+      <div class="exp-item"
+           *ngFor="let e of pagedExpenses(); trackBy: trackByExpenseId"
+           [class.exp-item-mobile]="isMobile()">
+
+        <div class="ei-icon"
+             [style.background]="typeMeta[e.type]?.bg"
+             [style.color]="typeMeta[e.type]?.color">
+          <i class="bi" [class]="typeMeta[e.type]?.icon"></i>
+        </div>
+
+        <!-- Desktop body layout -->
+        <div class="ei-body" *ngIf="!isMobile()">
+          <div class="ei-top">
+            <span class="ei-type">{{ e.type }}</span>
+            <span class="ei-amt">₹{{ e.amount | number }}</span>
+          </div>
+          <div class="ei-bot">
+            <span class="ei-notes">{{ e.notes || '—' }}</span>
+            <span class="ei-date">{{ formatDate(e.date) }}</span>
+          </div>
+        </div>
+
+        <!-- Mobile body layout: type + amount on top, notes + date below -->
+        <div class="ei-body-mobile" *ngIf="isMobile()">
+          <div class="eim-row1">
+            <span class="ei-type">{{ e.type }}</span>
+            <span class="ei-amt">₹{{ e.amount | number }}</span>
+          </div>
+          <div class="eim-row2">
+            <span class="ei-notes">{{ e.notes || '—' }}</span>
+            <span class="ei-date">{{ formatDate(e.date) }}</span>
+          </div>
+          <!-- Mobile action buttons: stacked under content, full touch area -->
+          <div class="ei-actions-mobile">
+            <button class="ea-btn ea-edit" (click)="openEdit(e, $event)">
+              <i class="bi bi-pencil-fill"></i> Edit
+            </button>
+            <button class="ea-btn ea-del" (click)="confirmDelete(e, $event)">
+              <i class="bi bi-trash3-fill"></i> Delete
+            </button>
+          </div>
+        </div>
+
+        <!-- Desktop actions: side buttons -->
+        <div class="ei-actions" *ngIf="!isMobile()">
+          <button class="ea-btn ea-edit" (click)="openEdit(e, $event)" title="Edit">
+            <i class="bi bi-pencil-fill"></i> Edit
+          </button>
+          <button class="ea-btn ea-del" (click)="confirmDelete(e, $event)" title="Delete">
+            <i class="bi bi-trash3-fill"></i> Delete
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state" *ngIf="pagedExpenses().length === 0">
+        <i class="bi bi-wallet2"></i>
+        <p>No expenses found</p>
+        <span>Try changing date range or filters</span>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar" *ngIf="totalPages() > 1">
+      <button class="pg-btn" (click)="goPage(currentPage()-1)" [disabled]="currentPage()===1">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <button class="pg-btn"
+        *ngFor="let p of pages(); trackBy: trackByPage"
+        [class.pg-active]="p===currentPage()"
+        (click)="goPage(p)">{{ p }}</button>
+      <button class="pg-btn" (click)="goPage(currentPage()+1)" [disabled]="currentPage()===totalPages()">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <!-- <span class="pg-info">{{ filteredExpenses().length }} entries · Page {{ currentPage() }} of {{ totalPages() }}</span> -->
+      <span class="pg-info">{{ totalCount() }} entries · Page {{ currentPage() }} of {{ totalPages() }}</span>
+    </div>
+
+  </ng-container>
+</div>
+
+<!-- ══ ADD / EDIT MODAL ══════════════════════════════════════ -->
+<div class="modal-mask" *ngIf="showModal()" (click)="closeModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+
+    <!-- Drag handle (mobile only visual cue) -->
+    <div class="modal-handle"></div>
+
+    <div class="modal-hdr">
+      <h3>{{ editingExpense() ? 'Edit Expense' : 'Add Expense' }}</h3>
+      <button class="modal-x" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Type selector -->
+      <div class="fg">
+        <label>Expense Type <span class="req">*</span></label>
+        <div class="type-grid">
+          <button *ngFor="let t of expenseTypes; trackBy: trackByType"
+            class="type-opt"
+            [class.type-sel]="formType()===t"
+            [style.--ac]="typeMeta[t]?.color"
+            [style.--bg]="typeMeta[t]?.bg"
+            (click)="formType.set(t); selectedWorker.set(null)">
+            <i class="bi" [class]="typeMeta[t]?.icon" [style.color]="typeMeta[t]?.color"></i>
+            <span>{{ t }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Worker picker (Salary only) -->
+      <div class="fg" *ngIf="formType()==='Salary'">
+        <label>
+          <i class="bi bi-people-fill" style="color:#8B5CF6;margin-right:4px"></i>
+          Select Worker <span class="worker-note">(loaded from Users tab)</span>
+        </label>
+        <div *ngIf="workers().length === 0" class="worker-empty">
+          <i class="bi bi-exclamation-circle"></i>
+          No active workers — add them in the <strong>Users</strong> tab first.
+        </div>
+        <select class="fi" *ngIf="workers().length > 0"
+          [ngModel]="selectedWorker()"
+          (ngModelChange)="onWorkerChange($event)">
+          <option value="">— Select worker to auto-fill salary —</option>
+          <option *ngFor="let w of workers()" [value]="w.id">
+            {{ w.name }} — ₹{{ w.salary | number }}/mo
+          </option>
+        </select>
+        <div class="worker-tip" *ngIf="workers().length > 0">
+          <i class="bi bi-info-circle"></i>
+          Picking a worker auto-fills amount &amp; notes. You can still edit them below.
+        </div>
+      </div>
+
+      <!-- Amount + Date -->
+      <div class="form-row">
+        <div class="fg">
+          <label>Amount (₹) <span class="req">*</span></label>
+          <input class="fi" type="number" min="0"
+            [ngModel]="formAmount()" (ngModelChange)="formAmount.set($event)" />
+        </div>
+        <div class="fg">
+          <label>Date <span class="req">*</span></label>
+          <input class="fi" type="date" [ngModel]="formDate()" (ngModelChange)="formDate.set($event)" />
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="fg">
+        <label>Notes</label>
+        <textarea class="fi fi-area" rows="2" placeholder="e.g. Weekly petrol fill"
+          [ngModel]="formNotes()" (ngModelChange)="formNotes.set($event)"></textarea>
+      </div>
+
+    </div>
+
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-save" (click)="save()" [disabled]="isSaving()">
+        <span class="spin-sm" *ngIf="isSaving()"></span>
+        <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+        {{ editingExpense() ? 'Update' : 'Add Expense' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DELETE CONFIRM ════════════════════════════════════════ -->
+<div class="modal-mask" *ngIf="deleteTarget()" (click)="deleteTarget.set(null)">
+  <div class="confirm-box" (click)="$event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="ci"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <h3>Delete Expense?</h3>
+    <p>
+      <strong>{{ deleteTarget()!.type }}</strong> — ₹{{ deleteTarget()!.amount | number }}<br>
+      <span class="cf-note">{{ deleteTarget()!.notes }}</span>
+    </p>
+    <div class="cb-btns">
+      <button class="btn-cancel" (click)="deleteTarget.set(null)">Cancel</button>
+      <button class="btn-delete" (click)="doDelete()"><i class="bi bi-trash3"></i> Delete</button>
+    </div>
+  </div>
+</div>

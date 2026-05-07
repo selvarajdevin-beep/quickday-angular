@@ -1,0 +1,623 @@
+<div class="reports-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Reports</h2>
+      <p class="page-subtitle">Analyse sales, expenses, profits &amp; more</p>
+    </div>
+    <div class="export-btns">
+      <button class="btn-export" (click)="exportCSV()">
+        <i class="bi bi-filetype-csv"></i>
+        <span class="export-label">CSV</span>
+      </button>
+      <button class="btn-export btn-excel" (click)="exportExcel()">
+        <i class="bi bi-file-earmark-excel"></i>
+        <span class="export-label">Excel</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Date Range Controls -->
+  <div class="date-controls">
+    <div class="quick-range">
+      <button [class.qr-active]="quickRange()==='7d'"  (click)="setQuickRange('7d')">7d</button>
+      <button [class.qr-active]="quickRange()==='30d'" (click)="setQuickRange('30d')">30d</button>
+      <button [class.qr-active]="quickRange()==='90d'" (click)="setQuickRange('90d')">90d</button>
+    </div>
+    <div class="custom-range">
+      <div class="date-input-wrap">
+        <i class="bi bi-calendar3"></i>
+        <input type="date" [ngModel]="dateFrom()" (ngModelChange)="onDateFromChange($event)" />
+      </div>
+      <span class="range-sep">–</span>
+      <div class="date-input-wrap">
+        <i class="bi bi-calendar3"></i>
+        <input type="date" [ngModel]="dateTo()" (ngModelChange)="onDateToChange($event)" />
+      </div>
+      <button class="btn-apply-range" (click)="applyCustomRange()">
+        <i class="bi bi-arrow-right-circle-fill"></i>
+        <span>Apply</span>
+      </button>
+    </div>
+    <span class="date-note desktop-only">
+      <i class="bi bi-lightning-charge-fill" style="color:#F59E0B"></i>
+      All charts react instantly to date changes
+    </span>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-icon ki-blue"><i class="bi bi-graph-up-arrow"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Total Sales</div>
+        <div class="kpi-value">{{ fmtMoney(summary().totalSales) }}</div>
+        <div class="kpi-sub">{{ summary().totalOrders }} orders</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon ki-green"><i class="bi bi-bag-check-fill"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value">{{ summary().totalOrders }}</div>
+        <div class="kpi-sub">{{ dateFrom() | date:'d MMM' }} – {{ dateTo() | date:'d MMM' }}</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon ki-purple"><i class="bi bi-currency-rupee"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Net Profit</div>
+        <div class="kpi-value" [class.profit-val]="summary().netProfit>=0" [class.loss-val]="summary().netProfit<0">
+          {{ fmtMoney(summary().netProfit) }}
+        </div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon ki-red"><i class="bi bi-clock-history"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Credit Pending</div>
+        <div class="kpi-value credit-val">{{ fmtMoney(summary().creditPending) }}</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon ki-orange"><i class="bi bi-wallet2"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Expenses</div>
+        <div class="kpi-value">{{ fmtMoney(summary().totalExpenses) }}</div>
+      </div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon ki-teal"><i class="bi bi-cart3"></i></div>
+      <div class="kpi-body">
+        <div class="kpi-label">Purchases</div>
+        <div class="kpi-value">{{ fmtMoney(summary().totalPurchases) }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Type Tabs -->
+  <div class="report-tabs-wrap">
+    <div class="report-tabs">
+      <button *ngFor="let r of reports" class="rtab"
+        [class.rtab-active]="activeReport()===r.type" (click)="switchReport(r.type)">
+        <i class="bi" [class]="r.icon"></i>
+        <span>{{ r.label }}</span>
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       DAILY SALES
+       ══════════════════════════════════════════════════════ -->
+  <div class="report-panel" *ngIf="activeReport()==='daily-sales'">
+    <div class="panel-hdr">
+      <h3>Daily Sales — {{ dateFrom() | date:'dd MMM' }} to {{ dateTo() | date:'dd MMM yyyy' }}</h3>
+      <div class="legend desktop-only">
+        <span class="leg leg-cash">Cash</span>
+        <span class="leg leg-upi">UPI</span>
+        <span class="leg leg-credit">Credit</span>
+      </div>
+    </div>
+
+    <div class="bar-chart-wrap">
+      <div class="y-axis">
+        <span class="y-tick">{{ fmtMoney(maxSales()) }}</span>
+        <span class="y-tick">{{ fmtMoney(maxSales() * 0.5) }}</span>
+        <span class="y-tick">₹0</span>
+      </div>
+      <div class="bar-chart-area">
+        <div class="chart-canvas">
+          <div class="grid-line" style="bottom: 100%"></div>
+          <div class="grid-line" style="bottom: 50%"></div>
+          <div class="grid-line" style="bottom: 0"></div>
+          <div class="bar-chart">
+            <div class="bar-col" *ngFor="let row of chartDailyRows(); trackBy: trackByDate"
+              [title]="fmtDate(row.date) + ': ' + fmtMoney(row.totalSales)">
+              <div class="bar-stack">
+                <div class="bar-seg bar-credit" [style.height.px]="barPx(row.creditAmount, maxSales())"></div>
+                <div class="bar-seg bar-upi"    [style.height.px]="barPx(row.upiAmount,    maxSales())"></div>
+                <div class="bar-seg bar-cash"   [style.height.px]="barPx(row.cashAmount,   maxSales())"></div>
+              </div>
+              <div class="bar-label">{{ fmtDate(row.date) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-legend mobile-only">
+      <span class="leg leg-cash">Cash</span>
+      <span class="leg leg-upi">UPI</span>
+      <span class="leg leg-credit">Credit</span>
+    </div>
+
+    <!-- DESKTOP TABLE -->
+    <div class="data-table-wrap desktop-only">
+      <table class="data-table">
+        <thead><tr>
+          <th>Date</th><th>Orders</th>
+          <th class="num-col">Cash</th><th class="num-col">UPI</th>
+          <th class="num-col">Credit</th><th class="num-col">Total</th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let row of pagedDailyRows(); trackBy: trackByDate">
+            <td>{{ fmtDate(row.date) }}</td>
+            <td><span class="cnt-badge">{{ row.orderCount }}</span></td>
+            <td class="num-col cash-col">₹{{ row.cashAmount | number }}</td>
+            <td class="num-col upi-col">₹{{ row.upiAmount | number }}</td>
+            <td class="num-col credit-col">₹{{ row.creditAmount | number }}</td>
+            <td class="num-col total-col">₹{{ row.totalSales | number }}</td>
+          </tr>
+          <tr *ngIf="dailySalesRows().length === 0">
+            <td colspan="6" class="empty-row">No sales data in this date range</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination-bar" *ngIf="dailyTotalPages() > 1">
+        <div class="page-info">{{ dailyPageStart() }}–{{ dailyPageEnd() }} of {{ dailySalesRows().length }} days</div>
+        <div class="page-controls">
+          <button class="pg-btn" [disabled]="dailyPage()===1" (click)="goDailyPage(1)"><i class="bi bi-chevron-double-left"></i></button>
+          <button class="pg-btn" [disabled]="dailyPage()===1" (click)="goDailyPage(dailyPage()-1)"><i class="bi bi-chevron-left"></i></button>
+          <button class="pg-num" *ngFor="let p of dailyPageNums(); trackBy: trackByNumber" [class.pg-active]="p===dailyPage()" (click)="goDailyPage(p)">{{ p }}</button>
+          <button class="pg-btn" [disabled]="dailyPage()===dailyTotalPages()" (click)="goDailyPage(dailyPage()+1)"><i class="bi bi-chevron-right"></i></button>
+          <button class="pg-btn" [disabled]="dailyPage()===dailyTotalPages()" (click)="goDailyPage(dailyTotalPages())"><i class="bi bi-chevron-double-right"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOBILE CARDS -->
+    <div class="mobile-only mobile-card-list">
+      <div class="data-card" *ngFor="let row of pagedDailyRows(); trackBy: trackByDate">
+        <div class="dc-top">
+          <span class="dc-date">{{ fmtDate(row.date) }}</span>
+          <span class="cnt-badge">{{ row.orderCount }} orders</span>
+        </div>
+        <div class="dc-amounts">
+          <div class="dc-amt-item">
+            <span class="dc-dot" style="background:#00C17B"></span>
+            <span class="dc-amt-lbl">Cash</span>
+            <span class="dc-amt-val cash-col">₹{{ row.cashAmount | number }}</span>
+          </div>
+          <div class="dc-amt-item">
+            <span class="dc-dot" style="background:#8B5CF6"></span>
+            <span class="dc-amt-lbl">UPI</span>
+            <span class="dc-amt-val upi-col">₹{{ row.upiAmount | number }}</span>
+          </div>
+          <div class="dc-amt-item">
+            <span class="dc-dot" style="background:#F59E0B"></span>
+            <span class="dc-amt-lbl">Credit</span>
+            <span class="dc-amt-val credit-col">₹{{ row.creditAmount | number }}</span>
+          </div>
+        </div>
+        <div class="dc-total">
+          <span class="dc-total-lbl">Total</span>
+          <span class="dc-total-val">₹{{ row.totalSales | number }}</span>
+        </div>
+      </div>
+      <div class="mobile-pagination" *ngIf="dailyTotalPages() > 1">
+        <button class="pg-btn" [disabled]="dailyPage()===1" (click)="goDailyPage(dailyPage()-1)">
+          <i class="bi bi-chevron-left"></i> Prev
+        </button>
+        <span class="mobile-page-info">{{ dailyPage() }} / {{ dailyTotalPages() }}</span>
+        <button class="pg-btn" [disabled]="dailyPage()===dailyTotalPages()" (click)="goDailyPage(dailyPage()+1)">
+          Next <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="mobile-empty" *ngIf="dailySalesRows().length === 0">
+        <i class="bi bi-graph-up"></i> No sales data in this range
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       MONTHLY SALES
+       ══════════════════════════════════════════════════════ -->
+  <div class="report-panel" *ngIf="activeReport()==='monthly-sales'">
+    <div class="panel-hdr"><h3>Monthly Sales — {{ dateFrom() | date:'dd MMM' }} to {{ dateTo() | date:'dd MMM yyyy' }}</h3></div>
+    <div class="bar-chart-wrap">
+      <div class="y-axis">
+        <span class="y-tick">{{ fmtMoney(maxMonthlySales()) }}</span>
+        <span class="y-tick">{{ fmtMoney(maxMonthlySales() * 0.5) }}</span>
+        <span class="y-tick">₹0</span>
+      </div>
+      <div class="bar-chart-area">
+        <div class="chart-canvas">
+          <div class="grid-line" style="bottom: 100%"></div>
+          <div class="grid-line" style="bottom: 50%"></div>
+          <div class="grid-line" style="bottom: 0"></div>
+          <div class="bar-chart bar-chart-wide">
+            <div class="bar-col" *ngFor="let row of profitRows()"
+              [title]="row.month + ': ' + fmtMoney(row.income)">
+              <div class="bar-stack">
+                <div class="bar-seg bar-cash" [style.height.px]="barPx(row.income, maxMonthlySales())"></div>
+              </div>
+              <div class="bar-label">{{ row.month.slice(0,3) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="data-table-wrap desktop-only">
+      <table class="data-table">
+        <thead><tr>
+          <th>Month</th><th class="num-col">Income</th>
+          <th class="num-col">Expenses</th><th class="num-col">Purchases</th>
+          <th class="num-col">Net Profit</th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let row of profitRows()">
+            <td class="month-col">{{ row.month }}</td>
+            <td class="num-col">₹{{ row.income | number }}</td>
+            <td class="num-col exp-col">₹{{ row.expenses | number }}</td>
+            <td class="num-col">₹{{ row.purchases | number }}</td>
+            <td class="num-col" [class.profit-pos]="row.profit>0" [class.profit-neg]="row.profit<=0">
+              ₹{{ row.profit | number }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mobile-only mobile-card-list">
+      <div class="data-card" *ngFor="let row of profitRows()">
+        <div class="dc-top">
+          <span class="dc-date">{{ row.month }}</span>
+          <span class="profit-chip" [class.pp-pos]="row.profit>0" [class.pp-neg]="row.profit<=0">
+            {{ fmtMoney(row.profit) }}
+          </span>
+        </div>
+        <div class="dc-amounts">
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Income</span><span class="dc-amt-val">₹{{ row.income | number }}</span></div>
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Expenses</span><span class="dc-amt-val exp-col">₹{{ row.expenses | number }}</span></div>
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Purchases</span><span class="dc-amt-val">₹{{ row.purchases | number }}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       CUSTOMER REPORT — server-paginated
+       ══════════════════════════════════════════════════════ -->
+  <div class="report-panel" *ngIf="activeReport()==='customer'">
+    <div class="panel-hdr">
+      <h3>Customer-wise</h3>
+      <div class="panel-hdr-right">
+        <div class="search-mini">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search customer…"
+            [ngModel]="customerFilter()"
+            (ngModelChange)="onCustSearch($event)" />
+          <button class="mini-clr" *ngIf="customerFilter()" (click)="onCustSearch(''); custPage.set(1)">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <span class="result-note">{{ custReportTotal() }} customers</span>
+      </div>
+    </div>
+
+    <div class="report-loading" *ngIf="custIsLoading()">
+      <i class="bi bi-arrow-repeat spin"></i> Loading…
+    </div>
+
+    <!-- DESKTOP TABLE -->
+    <div class="data-table-wrap desktop-only" *ngIf="!custIsLoading()">
+      <table class="data-table sortable">
+        <thead><tr>
+          <th>Customer</th><th>Phone</th>
+          <th class="num-col sort-th" (click)="sortBy('totalOrders')">
+            Orders <i class="bi"
+              [class.bi-arrow-down]="sortCol()==='totalOrders'&&sortDir()==='desc'"
+              [class.bi-arrow-up]="sortCol()==='totalOrders'&&sortDir()==='asc'"
+              [class.bi-arrow-down-up]="sortCol()!=='totalOrders'"></i>
+          </th>
+          <!-- FIX: sortBy('totalSales') — matches C# TotalSales field -->
+          <th class="num-col sort-th" (click)="sortBy('totalSales')">
+            Amount <i class="bi"
+              [class.bi-arrow-down]="sortCol()==='totalSales'&&sortDir()==='desc'"
+              [class.bi-arrow-up]="sortCol()==='totalSales'&&sortDir()==='asc'"
+              [class.bi-arrow-down-up]="sortCol()!=='totalSales'"></i>
+          </th>
+          <th class="num-col sort-th" (click)="sortBy('totalDue')">
+            Due <i class="bi"
+              [class.bi-arrow-down]="sortCol()==='totalDue'&&sortDir()==='desc'"
+              [class.bi-arrow-up]="sortCol()==='totalDue'&&sortDir()==='asc'"
+              [class.bi-arrow-down-up]="sortCol()!=='totalDue'"></i>
+          </th>
+          <th>Last Order</th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let row of custReportRows(); trackBy: trackByCustomer">
+            <td class="cust-name-td">{{ row.customerName }}</td>
+            <td class="phone-td">{{ row.phone }}</td>
+            <td class="num-col"><span class="cnt-badge">{{ row.totalOrders }}</span></td>
+            <!-- FIX: row.totalSales (was row.totalAmount) -->
+            <td class="num-col total-col">₹{{ row.totalSales | number }}</td>
+            <td class="num-col">
+              <span class="due-chip" [class.due-zero]="row.totalDue===0" [class.due-pos]="row.totalDue>0">
+                {{ row.totalDue === 0 ? '✓ Clear' : '₹' + (row.totalDue | number) }}
+              </span>
+            </td>
+            <!-- FIX: fmtDate handles ISO datetime string from C# DateTime? -->
+            <td class="date-td">{{ fmtDate(row.lastOrderDate) }}</td>
+          </tr>
+          <tr *ngIf="custReportRows().length === 0">
+            <td colspan="6" class="empty-row">No customers with orders in this date range</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- MOBILE CARDS -->
+    <div class="mobile-only mobile-card-list" *ngIf="!custIsLoading()">
+      <div class="data-card cust-card" *ngFor="let row of custReportRows(); trackBy: trackByCustomer">
+        <div class="dc-top">
+          <div class="cust-card-identity">
+            <span class="cust-card-name">{{ row.customerName }}</span>
+            <span class="cust-card-phone"><i class="bi bi-telephone-fill"></i> {{ row.phone }}</span>
+          </div>
+          <span class="due-chip" [class.due-zero]="row.totalDue===0" [class.due-pos]="row.totalDue>0">
+            {{ row.totalDue === 0 ? '✓ Clear' : '₹' + (row.totalDue | number) }}
+          </span>
+        </div>
+        <div class="dc-amounts">
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Orders</span><span class="cnt-badge">{{ row.totalOrders }}</span></div>
+          <!-- FIX: row.totalSales (was row.totalAmount) -->
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Amount</span><span class="dc-amt-val total-col">₹{{ row.totalSales | number }}</span></div>
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Last Order</span><span class="dc-amt-val">{{ fmtDate(row.lastOrderDate) }}</span></div>
+        </div>
+      </div>
+      <div class="mobile-empty" *ngIf="custReportRows().length === 0">
+        <i class="bi bi-people"></i> No customers in this range
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar" *ngIf="custTotalPages() > 1">
+      <div class="page-info">{{ custPageStart() }}–{{ custPageEnd() }} of {{ custReportTotal() }}</div>
+      <div class="page-controls">
+        <button class="pg-btn" [disabled]="custPage()===1" (click)="goCustPage(1)"><i class="bi bi-chevron-double-left"></i></button>
+        <button class="pg-btn" [disabled]="custPage()===1" (click)="goCustPage(custPage()-1)"><i class="bi bi-chevron-left"></i></button>
+        <button class="pg-num" *ngFor="let p of custPageNums(); trackBy: trackByNumber" [class.pg-active]="p===custPage()" (click)="goCustPage(p)">{{ p }}</button>
+        <button class="pg-btn" [disabled]="custPage()===custTotalPages()" (click)="goCustPage(custPage()+1)"><i class="bi bi-chevron-right"></i></button>
+        <button class="pg-btn" [disabled]="custPage()===custTotalPages()" (click)="goCustPage(custTotalPages())"><i class="bi bi-chevron-double-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       EXPENSE REPORT
+       ══════════════════════════════════════════════════════ -->
+  <div class="report-panel" *ngIf="activeReport()==='expense'">
+    <div class="panel-hdr">
+      <h3>Expense Report</h3>
+      <span class="panel-total">Total: ₹{{ totalExpenseAmount() | number }}</span>
+    </div>
+    <div class="expense-report-layout">
+      <div class="exp-bars">
+        <div class="exp-empty" *ngIf="expenseRows().length === 0">
+          <i class="bi bi-wallet2"></i> No expenses in this date range
+        </div>
+        <div class="exp-bar-row" *ngFor="let row of expenseRows()">
+          <div class="exp-bar-icon"
+            [style.background]="expenseColors[row.type]+'22'"
+            [style.color]="expenseColors[row.type]">
+            <i class="bi bi-circle-fill" style="font-size:8px"></i>
+          </div>
+          <div class="exp-bar-body">
+            <div class="exp-bar-top">
+              <span class="exp-type">{{ row.type }}</span>
+              <span class="exp-amt">₹{{ row.amount | number }} <small>({{ row.count }})</small></span>
+            </div>
+            <div class="exp-bar-bg">
+              <div class="exp-bar-fill"
+                [style.width.%]="expensePct(row.amount)"
+                [style.background]="expenseColors[row.type]"></div>
+            </div>
+          </div>
+          <span class="exp-pct">{{ expensePct(row.amount) }}%</span>
+        </div>
+      </div>
+      <div class="exp-donut-wrap" *ngIf="expenseRows().length > 0">
+        <svg viewBox="0 0 100 100" class="donut-svg">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#F3F4F6" stroke-width="18"/>
+          <ng-container *ngFor="let row of expenseRows(); let i = index">
+            <circle cx="50" cy="50" r="40" fill="none"
+              [attr.stroke]="expenseColors[row.type]"
+              stroke-width="18"
+              [attr.stroke-dasharray]="(expensePct(row.amount) * 2.513) + ' ' + (251.3 - expensePct(row.amount) * 2.513)"
+              [attr.stroke-dashoffset]="getDonutOffset(i)"
+              transform="rotate(-90 50 50)"/>
+          </ng-container>
+          <text x="50" y="46" text-anchor="middle" class="donut-label-sm">Total</text>
+          <text x="50" y="58" text-anchor="middle" class="donut-label-lg">{{ fmtMoney(totalExpenseAmount()) }}</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       PROFIT REPORT
+       ══════════════════════════════════════════════════════ -->
+  <div class="report-panel" *ngIf="activeReport()==='profit'">
+    <div class="panel-hdr"><h3>Profit & Loss — {{ dateFrom() | date:'dd MMM' }} to {{ dateTo() | date:'dd MMM yyyy' }}</h3></div>
+    <div class="profit-chart">
+      <div class="profit-col" *ngFor="let row of profitRows()">
+        <div class="pc-bars">
+          <div class="pc-income-bar" [style.height.px]="barPx(row.income, maxProfit())" [title]="'Income: ' + fmtMoney(row.income)"></div>
+          <div class="pc-exp-bar" [style.height.px]="barPx(row.expenses + row.purchases, maxProfit())" [title]="'Costs: ' + fmtMoney(row.expenses + row.purchases)"></div>
+        </div>
+        <div class="pc-label">{{ row.month.slice(0,3) }}</div>
+        <div class="pc-profit" [class.pp-pos]="row.profit>0" [class.pp-neg]="row.profit<=0">{{ fmtMoney(row.profit) }}</div>
+      </div>
+    </div>
+    <div class="profit-legend">
+      <span class="leg" style="--c:#00C17B">Income</span>
+      <span class="leg" style="--c:#EF4444">Costs</span>
+    </div>
+    <div class="data-table-wrap desktop-only" style="margin-top:16px">
+      <table class="data-table">
+        <thead><tr>
+          <th>Month</th><th class="num-col">Income</th>
+          <th class="num-col">Expenses</th><th class="num-col">Purchases</th>
+          <th class="num-col">Net Profit</th><th class="num-col">Margin %</th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let row of profitRows()">
+            <td class="month-col">{{ row.month }}</td>
+            <td class="num-col">₹{{ row.income | number }}</td>
+            <td class="num-col exp-col">₹{{ row.expenses | number }}</td>
+            <td class="num-col">₹{{ row.purchases | number }}</td>
+            <td class="num-col" [class.profit-pos]="row.profit>0" [class.profit-neg]="row.profit<=0">₹{{ row.profit | number }}</td>
+            <td class="num-col">
+              <span class="margin-badge" [class.mb-pos]="row.profit>0">
+                {{ row.income > 0 ? ((row.profit / row.income) * 100).toFixed(1) : 0 }}%
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mobile-only mobile-card-list" style="margin-top:12px">
+      <div class="data-card" *ngFor="let row of profitRows()">
+        <div class="dc-top">
+          <span class="dc-date">{{ row.month }}</span>
+          <div class="dc-top-right">
+            <span class="margin-badge" [class.mb-pos]="row.profit>0">{{ row.income > 0 ? ((row.profit / row.income) * 100).toFixed(1) : 0 }}%</span>
+            <span class="profit-chip" [class.pp-pos]="row.profit>0" [class.pp-neg]="row.profit<=0">{{ fmtMoney(row.profit) }}</span>
+          </div>
+        </div>
+        <div class="dc-amounts">
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Income</span><span class="dc-amt-val">₹{{ row.income | number }}</span></div>
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Expenses</span><span class="dc-amt-val exp-col">₹{{ row.expenses | number }}</span></div>
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Purchases</span><span class="dc-amt-val">₹{{ row.purchases | number }}</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       PURCHASE REPORT — server-paginated
+       ══════════════════════════════════════════════════════ -->
+  <div class="report-panel" *ngIf="activeReport()==='purchase'">
+    <div class="panel-hdr">
+      <h3>Purchase Report</h3>
+      <div class="panel-hdr-right">
+        <div class="search-mini">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search supplier…"
+            [ngModel]="supplierFilter()"
+            (ngModelChange)="onPurSearch($event)" />
+          <button class="mini-clr" *ngIf="supplierFilter()" (click)="onPurSearch(''); purPage.set(1)">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <span class="result-note">{{ purReportTotal() }} suppliers</span>
+      </div>
+    </div>
+
+    <div class="report-loading" *ngIf="purIsLoading()">
+      <i class="bi bi-arrow-repeat spin"></i> Loading…
+    </div>
+
+    <!-- DESKTOP TABLE -->
+    <div class="data-table-wrap desktop-only" *ngIf="!purIsLoading()">
+      <table class="data-table">
+        <thead><tr>
+          <th>Supplier</th>
+          <!-- FIX: header label "Orders" maps to totalPurchases -->
+          <th class="num-col">Orders</th>
+          <th class="num-col">Total Amount</th>
+          <th class="num-col">Credit Pending</th>
+          <th>Status</th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let row of purReportRows(); trackBy: trackBySupplier">
+            <td class="sup-name-td">{{ row.supplierName }}</td>
+            <!-- FIX: row.totalPurchases (was row.totalOrders) -->
+            <td class="num-col"><span class="cnt-badge">{{ row.totalPurchases }}</span></td>
+            <td class="num-col total-col">₹{{ row.totalAmount | number }}</td>
+            <!-- FIX: row.totalDue (was row.creditPending) -->
+            <td class="num-col" [class.credit-col]="row.totalDue>0">
+              {{ row.totalDue > 0 ? '₹' + (row.totalDue | number) : '—' }}
+            </td>
+            <td>
+              <span class="due-chip" [class.due-zero]="row.totalDue===0" [class.due-pos]="row.totalDue>0">
+                {{ row.totalDue === 0 ? '✓ Clear' : 'Pending' }}
+              </span>
+            </td>
+          </tr>
+          <tr *ngIf="purReportRows().length === 0">
+            <td colspan="5" class="empty-row">No purchases in this date range</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- MOBILE CARDS -->
+    <div class="mobile-only mobile-card-list" *ngIf="!purIsLoading()">
+      <div class="data-card" *ngFor="let row of purReportRows(); trackBy: trackBySupplier">
+        <div class="dc-top">
+          <span class="dc-date">{{ row.supplierName }}</span>
+          <!-- FIX: row.totalDue (was row.creditPending) -->
+          <span class="due-chip" [class.due-zero]="row.totalDue===0" [class.due-pos]="row.totalDue>0">
+            {{ row.totalDue === 0 ? '✓ Clear' : 'Pending' }}
+          </span>
+        </div>
+        <div class="dc-amounts">
+          <!-- FIX: row.totalPurchases (was row.totalOrders) -->
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Orders</span><span class="cnt-badge">{{ row.totalPurchases }}</span></div>
+          <div class="dc-amt-item"><span class="dc-amt-lbl">Total</span><span class="dc-amt-val total-col">₹{{ row.totalAmount | number }}</span></div>
+          <div class="dc-amt-item">
+            <span class="dc-amt-lbl">Credit Due</span>
+            <!-- FIX: row.totalDue (was row.creditPending) -->
+            <span class="dc-amt-val" [class.credit-col]="row.totalDue>0">
+              {{ row.totalDue > 0 ? '₹' + (row.totalDue | number) : '—' }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="mobile-empty" *ngIf="purReportRows().length === 0">
+        <i class="bi bi-cart3"></i> No purchases in this range
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar" *ngIf="purTotalPages() > 1">
+      <div class="page-info">{{ purPageStart() }}–{{ purPageEnd() }} of {{ purReportTotal() }}</div>
+      <div class="page-controls">
+        <button class="pg-btn" [disabled]="purPage()===1" (click)="goPurPage(1)"><i class="bi bi-chevron-double-left"></i></button>
+        <button class="pg-btn" [disabled]="purPage()===1" (click)="goPurPage(purPage()-1)"><i class="bi bi-chevron-left"></i></button>
+        <button class="pg-num" *ngFor="let p of purPageNums(); trackBy: trackByNumber" [class.pg-active]="p===purPage()" (click)="goPurPage(p)">{{ p }}</button>
+        <button class="pg-btn" [disabled]="purPage()===purTotalPages()" (click)="goPurPage(purPage()+1)"><i class="bi bi-chevron-right"></i></button>
+        <button class="pg-btn" [disabled]="purPage()===purTotalPages()" (click)="goPurPage(purTotalPages())"><i class="bi bi-chevron-double-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+</div>

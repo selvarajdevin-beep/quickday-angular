@@ -1,0 +1,416 @@
+<div class="inventory-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'" [class.t-warn]="toastType()==='warning'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'" [class.bi-exclamation-triangle-fill]="toastType()==='warning'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Inventory</h2>
+      <p class="page-subtitle">Track stock levels and manage adjustments</p>
+    </div>
+  </div>
+
+  <!-- Low Stock Banner -->
+  <div class="alert-banner" *ngIf="lowStockCount() > 0">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <div>
+      <strong>Low Stock Alert:</strong> {{ lowStockCount() }} product{{ lowStockCount() > 1 ? 's are' : ' is' }} running low —
+      <span *ngFor="let item of filteredInventory().slice(0, 3); let last = last">
+        <ng-container *ngIf="getStockStatus(item) !== 'good'">{{ item.name }} ({{ item.currentStock }} left){{ !last ? ', ' : '' }}</ng-container>
+      </span>
+    </div>
+  </div>
+
+  <!-- Summary Strip -->
+  <div class="summary-strip">
+    <div class="sum-card">
+      <div class="sum-ic ic-blue"><i class="bi bi-boxes"></i></div>
+      <div><div class="sum-lbl">Products</div><div class="sum-val">{{ stockTotal() }}</div></div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-ic ic-green"><i class="bi bi-check-circle"></i></div>
+      <div><div class="sum-lbl">Total Units</div><div class="sum-val">{{ totalStockUnits() }}</div></div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-ic ic-red"><i class="bi bi-exclamation-triangle"></i></div>
+      <div><div class="sum-lbl">Low Stock</div><div class="sum-val">{{ lowStockCount() }}</div></div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-row">
+    <button [class.tab-active]="activeTab() === 'stock'" (click)="activeTab.set('stock')">
+      <i class="bi bi-grid-3x3-gap"></i> Stock Levels
+    </button>
+    <button [class.tab-active]="activeTab() === 'log'" (click)="activeTab.set('log')">
+      <i class="bi bi-clock-history"></i> Stock Log
+    </button>
+  </div>
+
+  <!-- ══ STOCK LEVELS ══════════════════════════════════════ -->
+  <div *ngIf="activeTab() === 'stock'">
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Search product…"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onStockSearch($event)" />
+      </div>
+      <button class="filter-btn" [class.filter-active]="filterLowStock()"
+        (click)="onLowStockToggle()">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        {{ filterLowStock() ? 'Showing Low Stock' : 'Show Low Stock Only' }}
+      </button>
+    </div>
+
+    <!-- ── DESKTOP TABLE (hidden on mobile) ── -->
+    <div class="table-card" *ngIf="!isMobile()">
+      <table class="inv-table">
+        <thead>
+          <tr>
+            <th class="sort-th" (click)="toggleSort('name')">
+              Product
+              <i class="bi sort-ic"
+                [class.bi-arrow-down]="sortCol() === 'name' && sortDir() === 'desc'"
+                [class.bi-arrow-up]="sortCol() === 'name' && sortDir() === 'asc'"
+                [class.bi-arrow-down-up]="sortCol() !== 'name'"></i>
+            </th>
+            <th class="sort-th num-th" (click)="toggleSort('stock')">
+              Current Stock
+              <i class="bi sort-ic"
+                [class.bi-arrow-down]="sortCol() === 'stock' && sortDir() === 'desc'"
+                [class.bi-arrow-up]="sortCol() === 'stock' && sortDir() === 'asc'"
+                [class.bi-arrow-down-up]="sortCol() !== 'stock'"></i>
+            </th>
+            <th>Stock Level</th>
+            <th class="sort-th num-th" (click)="toggleSort('min')">
+              Min Alert
+              <i class="bi sort-ic"
+                [class.bi-arrow-down]="sortCol() === 'min' && sortDir() === 'desc'"
+                [class.bi-arrow-up]="sortCol() === 'min' && sortDir() === 'asc'"
+                [class.bi-arrow-down-up]="sortCol() !== 'min'"></i>
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of filteredInventory(); trackBy: trackByProductId"
+              [class.row-critical]="getStockStatus(item) === 'critical'"
+              [class.row-low]="getStockStatus(item) === 'low'">
+            <td>
+              <div class="prod-cell">
+                <div class="p-icon" [class.icon-can]="item.unitType === 'Can'" [class.icon-bottle]="item.unitType === 'Bottle'">
+                  <i class="bi" [class.bi-droplet-fill]="item.unitType === 'Can'" [class.bi-cup-fill]="item.unitType === 'Bottle'"></i>
+                </div>
+                <div>
+                  <span class="p-name">{{ item.name }}</span>
+                  <span class="p-cap">{{ item.capacity }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="num-td">
+              <div class="stock-cell">
+                <span class="stock-num"
+                  [class.sc-good]="getStockStatus(item) === 'good'"
+                  [class.sc-low]="getStockStatus(item) === 'low'"
+                  [class.sc-crit]="getStockStatus(item) === 'critical'">{{ item.currentStock }}</span>
+                <span class="stock-unit">units</span>
+                <span class="stock-badge" *ngIf="getStockStatus(item) !== 'good'"
+                  [class.sb-low]="getStockStatus(item) === 'low'"
+                  [class.sb-crit]="getStockStatus(item) === 'critical'">
+                  {{ getStockStatus(item) === 'critical' ? '⚠ Out' : '⚠ Low' }}
+                </span>
+              </div>
+            </td>
+            <td>
+              <div class="prog-wrap">
+                <div class="prog-bg">
+                  <div class="prog-fill"
+                    [style.width.%]="getStockPercent(item)"
+                    [class.pf-good]="getStockStatus(item) === 'good'"
+                    [class.pf-low]="getStockStatus(item) === 'low'"
+                    [class.pf-crit]="getStockStatus(item) === 'critical'"></div>
+                </div>
+                <span class="prog-pct">{{ getStockPercent(item) }}%</span>
+              </div>
+            </td>
+            <td class="num-td">
+              <div class="alert-cell">
+                <span class="alert-v">{{ item.minStockAlert }}</span>
+                <button class="btn-alert-edit" (click)="openAlertModal(item)" title="Edit alert threshold">
+                  <i class="bi bi-pencil-fill"></i> Edit
+                </button>
+              </div>
+            </td>
+            <td>
+              <div class="act-btns">
+                <button class="btn-in" (click)="openAdjustModal(item, 'IN')"><i class="bi bi-plus-lg"></i> Add Stock</button>
+                <button class="btn-out" (click)="openAdjustModal(item, 'OUT')" [disabled]="item.currentStock === 0"><i class="bi bi-dash-lg"></i> Remove</button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="filteredInventory().length === 0">
+            <td colspan="5" style="text-align:center;padding:40px;color:var(--tm)">No products found</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── MOBILE CARDS (hidden on desktop) ── -->
+    <div class="mobile-list" *ngIf="isMobile()">
+      <div class="inv-card"
+           *ngFor="let item of filteredInventory(); trackBy: trackByProductId"
+           [class.card-critical]="getStockStatus(item) === 'critical'"
+           [class.card-low]="getStockStatus(item) === 'low'">
+
+        <!-- Card Header -->
+        <div class="card-header">
+          <div class="prod-cell">
+            <div class="p-icon" [class.icon-can]="item.unitType === 'Can'" [class.icon-bottle]="item.unitType === 'Bottle'">
+              <i class="bi" [class.bi-droplet-fill]="item.unitType === 'Can'" [class.bi-cup-fill]="item.unitType === 'Bottle'"></i>
+            </div>
+            <div>
+              <span class="p-name">{{ item.name }}</span>
+              <span class="p-cap">{{ item.capacity }}</span>
+            </div>
+          </div>
+          <!-- Status Badge -->
+          <span class="card-status-badge"
+                [class.csb-good]="getStockStatus(item) === 'good'"
+                [class.csb-low]="getStockStatus(item) === 'low'"
+                [class.csb-crit]="getStockStatus(item) === 'critical'">
+            {{ getStockStatus(item) === 'good' ? '● In Stock' : getStockStatus(item) === 'low' ? '⚠ Low' : '⚠ Out' }}
+          </span>
+        </div>
+
+        <!-- Stock Info Row -->
+        <div class="card-stock-row">
+          <div class="card-stat">
+            <span class="cs-label">Current Stock</span>
+            <span class="cs-value"
+                  [class.sc-good]="getStockStatus(item) === 'good'"
+                  [class.sc-low]="getStockStatus(item) === 'low'"
+                  [class.sc-crit]="getStockStatus(item) === 'critical'">
+              {{ item.currentStock }} <span class="cs-unit">units</span>
+            </span>
+          </div>
+          <div class="card-stat">
+            <span class="cs-label">Min Alert</span>
+            <div class="cs-alert-row">
+              <span class="cs-value">{{ item.minStockAlert }}</span>
+              <button class="btn-alert-edit-sm" (click)="openAlertModal(item)">
+                <i class="bi bi-pencil-fill"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="card-progress">
+          <div class="prog-bg">
+            <div class="prog-fill"
+              [style.width.%]="getStockPercent(item)"
+              [class.pf-good]="getStockStatus(item) === 'good'"
+              [class.pf-low]="getStockStatus(item) === 'low'"
+              [class.pf-crit]="getStockStatus(item) === 'critical'"></div>
+          </div>
+          <span class="prog-pct">{{ getStockPercent(item) }}%</span>
+        </div>
+
+        <!-- Card Actions -->
+        <div class="card-actions">
+          <button class="btn-in card-btn" (click)="openAdjustModal(item, 'IN')">
+            <i class="bi bi-plus-lg"></i> Add Stock
+          </button>
+          <button class="btn-out card-btn" (click)="openAdjustModal(item, 'OUT')" [disabled]="item.currentStock === 0">
+            <i class="bi bi-dash-lg"></i> Remove
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-state" *ngIf="filteredInventory().length === 0">
+        <i class="bi bi-boxes"></i>
+        <p>No products found</p>
+      </div>
+    </div>
+
+    <!-- Stock Pagination -->
+    <div class="pagination-bar" *ngIf="stockTotal() > 0">
+      <button class="pg-btn" (click)="goStockPage(stockPage()-1)" [disabled]="stockPage()===1">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <ng-container *ngIf="stockTotalPages() > 1">
+        <button class="pg-btn" *ngFor="let p of stockPages()"
+          [class.pg-active]="p===stockPage()" (click)="goStockPage(p)">{{ p }}</button>
+      </ng-container>
+      <button class="pg-btn" (click)="goStockPage(stockPage()+1)" [disabled]="stockPage()===stockTotalPages()">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <span class="pg-info">{{ stockTotal() }} products · Page {{ stockPage() }} of {{ stockTotalPages() }}</span>
+    </div>
+
+  </div>
+
+  <!-- ══ STOCK LOG ════════════════════════════════════════ -->
+  <div *ngIf="activeTab() === 'log'">
+    <!-- Log Filters -->
+    <div class="log-filters">
+      <div class="date-quick">
+        <button [class.dq-active]="logDateFilter() === 'today'" (click)="setLogDateFilter('today')">Today</button>
+        <button [class.dq-active]="logDateFilter() === 'week'" (click)="setLogDateFilter('week')">Last 7 days</button>
+        <button [class.dq-active]="logDateFilter() === 'custom'">Custom</button>
+      </div>
+      <div class="date-range">
+        <div class="date-inp">
+          <i class="bi bi-calendar3"></i>
+          <input type="date" [ngModel]="logFrom()" (ngModelChange)="logFrom.set($event)" />
+        </div>
+        <span class="date-sep">to</span>
+        <div class="date-inp">
+          <i class="bi bi-calendar3"></i>
+          <input type="date" [ngModel]="logTo()" (ngModelChange)="logTo.set($event)" />
+        </div>
+        <button class="btn-apply" (click)="applyLogDateRange()">Apply</button>
+      </div>
+      <div class="search-box" style="max-width:220px">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Search log…"
+          [ngModel]="logSearch()"
+          (ngModelChange)="onLogSearch($event)" />
+      </div>
+    </div>
+
+    <div class="log-list">
+      <div class="log-item" *ngFor="let log of logItems(); trackBy: trackByLogId">
+        <div class="log-icon" [class.li-in]="log.type === 'IN'" [class.li-out]="log.type === 'OUT'">
+          <i class="bi" [class.bi-arrow-down-circle-fill]="log.type === 'IN'" [class.bi-arrow-up-circle-fill]="log.type === 'OUT'"></i>
+        </div>
+        <div class="log-body">
+          <div class="log-hdr">
+            <span class="log-prod">{{ log.productName }}</span>
+            <span class="log-qty" [class.lq-in]="log.type === 'IN'" [class.lq-out]="log.type === 'OUT'">
+              {{ log.type === 'IN' ? '+' : '-' }}{{ log.quantity }} units
+            </span>
+          </div>
+          <div class="log-footer">
+            <span class="log-reason">{{ log.reason }}</span>
+            <span class="log-ref" *ngIf="log.reference">Ref: {{ log.reference }}</span>
+            <span class="log-time">{{ fmtDate(log.date) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="empty-state" *ngIf="logItems().length === 0">
+        <i class="bi bi-clock-history"></i>
+        <p>No stock movements found</p>
+      </div>
+    </div>
+
+    <!-- Log Pagination -->
+    <div class="pagination-bar" *ngIf="logTotal() > 0">
+      <button class="pg-btn" (click)="goLogPage(logPage()-1)" [disabled]="logPage()===1">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <ng-container *ngIf="logTotalPages() > 1">
+        <button class="pg-btn" *ngFor="let p of logPages()"
+          [class.pg-active]="p===logPage()" (click)="goLogPage(p)">{{ p }}</button>
+      </ng-container>
+      <button class="pg-btn" (click)="goLogPage(logPage()+1)" [disabled]="logPage()===logTotalPages()">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <span class="pg-info">{{ logTotal() }} entries · Page {{ logPage() }} of {{ logTotalPages() }}</span>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ══ ADJUST STOCK MODAL ══════════════════════════════ -->
+<div class="modal-mask" *ngIf="showAdjustModal()" (click)="closeAdjustModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-hdr">
+      <div>
+        <h3>{{ adjustType() === 'IN' ? '➕ Add Stock' : '➖ Remove Stock' }}</h3>
+        <p class="modal-sub">{{ selectedItem()?.name }}</p>
+      </div>
+      <button class="modal-x" (click)="closeAdjustModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="curr-stock-row">
+        <span>Current Stock</span>
+        <strong>{{ selectedItem()?.currentStock }} units</strong>
+      </div>
+      <div class="type-toggle">
+        <button [class.tb-in]="adjustType() === 'IN'" [class.tb-off]="adjustType() !== 'IN'" (click)="adjustType.set('IN')">
+          <i class="bi bi-arrow-down-circle"></i> Stock In
+        </button>
+        <button [class.tb-out]="adjustType() === 'OUT'" [class.tb-off]="adjustType() !== 'OUT'" (click)="adjustType.set('OUT')">
+          <i class="bi bi-arrow-up-circle"></i> Stock Out
+        </button>
+      </div>
+      <div class="fg">
+        <label>Quantity <span class="req">*</span></label>
+        <div class="qty-row">
+          <button class="qty-b" (click)="adjustQty.set(Math.max(0, adjustQty() - 1))">−</button>
+          <input type="number" class="fi" style="text-align:center;font-family:'Space Mono',monospace;font-size:17px;font-weight:700"
+                 [ngModel]="adjustQty()" (ngModelChange)="adjustQty.set($event)" min="0" />
+          <button class="qty-b" (click)="adjustQty.set(adjustQty() + 1)">+</button>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Reason <span class="req">*</span></label>
+        <select class="fi" [ngModel]="adjustReason()" (ngModelChange)="adjustReason.set($event)">
+          <option value="">Select reason…</option>
+          <option>Purchase from supplier</option>
+          <option>Sales orders</option>
+          <option>Manual correction</option>
+          <option>Damaged / Lost</option>
+          <option>Return from customer</option>
+        </select>
+      </div>
+      <div class="new-preview" *ngIf="adjustQty() > 0">
+        <span>New Stock After</span>
+        <strong>{{ adjustType() === 'IN' ? (selectedItem()?.currentStock || 0) + adjustQty() : (selectedItem()?.currentStock || 0) - adjustQty() }} units</strong>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeAdjustModal()">Cancel</button>
+      <button class="btn-save" [class.btn-save-out]="adjustType() === 'OUT'" (click)="saveAdjustment()">
+        <i class="bi bi-check-lg"></i> Confirm {{ adjustType() === 'IN' ? 'Add' : 'Remove' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ALERT THRESHOLD MODAL ══════════════════════════ -->
+<div class="modal-mask" *ngIf="showAlertModal()" (click)="showAlertModal.set(false)">
+  <div class="modal-box modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal-hdr">
+      <h3>Edit Alert Threshold</h3>
+      <button class="modal-x" (click)="showAlertModal.set(false)"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--ts);margin:0 0 14px">
+        Alert when <strong>{{ editingAlertItem()?.name }}</strong> stock drops to or below:
+      </p>
+      <div class="qty-row">
+        <button class="qty-b" (click)="newMinStock.set(Math.max(0, newMinStock() - 5))">−</button>
+        <input type="number" class="fi" style="text-align:center;font-family:'Space Mono',monospace;font-size:17px;font-weight:700"
+               [ngModel]="newMinStock()" (ngModelChange)="newMinStock.set($event)" />
+        <button class="qty-b" (click)="newMinStock.set(newMinStock() + 5)">+</button>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="showAlertModal.set(false)">Cancel</button>
+      <button class="btn-save" (click)="saveAlertThreshold()"><i class="bi bi-check-lg"></i> Save</button>
+    </div>
+  </div>
+</div>

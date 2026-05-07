@@ -1,0 +1,314 @@
+<!-- customer-history-modal.component.html -->
+<div class="hist-mask" *ngIf="visible" (click)="onMaskClick($event)">
+  <div class="hist-modal">
+
+    <!-- ── Header ── -->
+    <div class="hist-hdr">
+      <div class="hist-hdr-left">
+        <div class="hist-av" [style.background]="avatarColor(customer?.id ?? 0)">
+          {{ initials(customer?.name ?? '') }}
+        </div>
+        <div class="hist-hdr-info">
+          <h2 class="hist-title">{{ customer?.name }}</h2>
+          <div class="hist-sub">
+            <span class="type-badge" [class]="typeClass(customer?.customerType ?? 'Home')">
+              <i class="bi" [class.bi-building]="customer?.customerType==='Hotel'"
+                            [class.bi-house-fill]="customer?.customerType==='Home'"></i>
+              {{ customer?.customerType }}
+            </span>
+            <span><i class="bi bi-telephone"></i> {{ customer?.phone }}</span>
+            <span class="hide-xs" *ngIf="customer?.address">
+              <i class="bi bi-geo-alt"></i> {{ customer?.address }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="hist-hdr-right">
+        <!-- Mobile: filter toggle button -->
+        <!-- <button class="mob-filter-toggle mobile-only"
+          (click)="filtersExpanded = !filtersExpanded"
+          [class.mob-filter-active]="filtersExpanded">
+          <i class="bi bi-sliders"></i>
+          <span class="mob-filter-dot" *ngIf="hasActiveFilters()"></span>
+        </button> -->
+        <button class="hist-close" (click)="close()"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+
+    <!-- ── Summary strip ── -->
+    <div class="hist-summary-strip">
+      <div class="hss-item">
+        <span class="hss-v">{{ summary.totalOrders }}</span>
+        <span class="hss-l">Orders</span>
+      </div>
+      <div class="hss-sep"></div>
+      <div class="hss-item">
+        <span class="hss-v">₹{{ summary.totalSales | number }}</span>
+        <span class="hss-l">Sales</span>
+      </div>
+      <div class="hss-sep"></div>
+      <div class="hss-item">
+        <span class="hss-v">₹{{ summary.totalPaid | number }}</span>
+        <span class="hss-l">Paid</span>
+      </div>
+      <div class="hss-sep"></div>
+      <div class="hss-item">
+        <span class="hss-v" [class.hss-red]="summary.totalDue > 0">
+          ₹{{ summary.totalDue | number }}
+        </span>
+        <span class="hss-l">Due</span>
+      </div>
+    </div>
+
+    <!-- ── Filters — Desktop always visible, Mobile collapsible ── -->
+    <div class="hist-filters desktop-only">
+      <div class="hf-group">
+        <label class="hf-label">From</label>
+        <input type="date" class="hf-input" [(ngModel)]="dateFrom" (change)="onFilterChange()" />
+      </div>
+      <div class="hf-group">
+        <label class="hf-label">To</label>
+        <input type="date" class="hf-input" [(ngModel)]="dateTo" (change)="onFilterChange()" />
+      </div>
+      <div class="hf-group hf-search-group">
+        <label class="hf-label">Search</label>
+        <div class="hf-search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Order ID or product name…"
+            [(ngModel)]="searchText" (input)="onFilterChange()" />
+          <button class="hf-clr" *ngIf="searchText" (click)="searchText=''; onFilterChange()">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      </div>
+      <div class="hf-group">
+        <label class="hf-label">Status</label>
+        <select class="hf-input" [(ngModel)]="filterStatus" (change)="onFilterChange()">
+          <option value="all">All Statuses</option>
+          <option value="Paid">Paid</option>
+          <option value="Partial">Partial</option>
+          <option value="Credit">Credit</option>
+        </select>
+      </div>
+      <div class="hf-actions">
+        <button class="hf-reset" (click)="resetFilters()" title="Reset filters">
+          <i class="bi bi-arrow-counterclockwise"></i>
+          <span class="hf-btn-label">Reset</span>
+        </button>
+        <button class="hf-export" (click)="exportExcel()"
+          [disabled]="isLoading || isExporting || totalCount === 0">
+          <span class="spin-sm" *ngIf="isExporting"></span>
+          <i class="bi bi-file-earmark-spreadsheet" *ngIf="!isExporting"></i>
+          <span class="hf-btn-label">Export Excel</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Mobile filter bar — always visible compact row ── -->
+    <div class="mob-filter-bar mobile-only">
+      <!-- Date range compact display -->
+      <div class="mob-date-row">
+        <div class="mob-date-field">
+          <i class="bi bi-calendar3"></i>
+          <input type="date" [(ngModel)]="dateFrom" (change)="onFilterChange()" />
+        </div>
+        <span class="mob-date-sep">→</span>
+        <div class="mob-date-field">
+          <input type="date" [(ngModel)]="dateTo" (change)="onFilterChange()" />
+        </div>
+      </div>
+      <!-- Status chips row -->
+      <div class="mob-status-row">
+        <button class="mob-st-chip" [class.mob-st-on]="filterStatus==='all'"
+          (click)="filterStatus='all'; onFilterChange()">All</button>
+        <button class="mob-st-chip mob-st-paid" [class.mob-st-on]="filterStatus==='Paid'"
+          (click)="filterStatus='Paid'; onFilterChange()">Paid</button>
+        <button class="mob-st-chip mob-st-partial" [class.mob-st-on]="filterStatus==='Partial'"
+          (click)="filterStatus='Partial'; onFilterChange()">Partial</button>
+        <button class="mob-st-chip mob-st-credit" [class.mob-st-on]="filterStatus==='Credit'"
+          (click)="filterStatus='Credit'; onFilterChange()">Credit</button>
+        <!-- Search + export inline -->
+        <div class="mob-search-inline">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search…"
+            [(ngModel)]="searchText" (input)="onFilterChange()" />
+          <button *ngIf="searchText" (click)="searchText=''; onFilterChange()">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <button class="mob-export-btn" (click)="exportExcel()"
+          [disabled]="isLoading || isExporting || totalCount === 0"
+          title="Export Excel">
+          <span class="spin-sm" *ngIf="isExporting"></span>
+          <i class="bi bi-file-earmark-spreadsheet" *ngIf="!isExporting"></i>
+        </button>
+        <button class="mob-reset-btn" (click)="resetFilters()" title="Reset">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Body (scrollable) ── -->
+    <div class="hist-body">
+
+      <!-- Loading -->
+      <div class="hist-loading" *ngIf="isLoading">
+        <div class="spin"></div>
+      </div>
+
+      <!-- Desktop table -->
+      <div class="hist-table-wrap desktop-only" *ngIf="!isLoading">
+        <table class="hist-table">
+          <thead>
+            <tr>
+              <th class="th-id">Order #</th>
+              <th>Date</th>
+              <th>Items</th>
+              <th class="th-r">Grand Total</th>
+              <th class="th-r">Paid</th>
+              <th class="th-r">Balance</th>
+              <th>Status</th>
+              <th>Payment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let o of orders; trackBy: trackById" class="hist-row">
+              <td class="td-id">#{{ o.id }}</td>
+              <td class="td-date">{{ fmtDate(o.createdAt) }}</td>
+              <td class="td-items">
+                <div class="items-list">
+                  <span class="item-chip" *ngFor="let it of o.items">
+                    {{ it.productName }}&nbsp;<strong>×{{ it.quantity }}</strong>
+                  </span>
+                </div>
+              </td>
+              <td class="td-r mono">₹{{ o.grandTotal | number }}</td>
+              <td class="td-r mono green-txt">₹{{ o.paidAmount | number }}</td>
+              <td class="td-r mono" [class.red-txt]="o.balance > 0">
+                {{ o.balance === 0 ? '—' : '₹'+(o.balance | number) }}
+              </td>
+              <td>
+                <span class="st-pill"
+                  [class.st-paid]="o.status==='Paid'"
+                  [class.st-credit]="o.status==='Credit'"
+                  [class.st-partial]="o.status==='Partial'">
+                  {{ o.status }}
+                </span>
+              </td>
+              <td>
+                <span class="pm-badge">
+                  <i class="bi"
+                    [class.bi-cash]="o.paymentType==='Cash'"
+                    [class.bi-phone]="o.paymentType==='UPI'"
+                    [class.bi-clock]="o.paymentType==='Credit'"></i>
+                  {{ o.paymentType }}
+                </span>
+              </td>
+            </tr>
+            <tr *ngIf="orders.length === 0">
+              <td colspan="8" class="hist-empty-cell">
+                <i class="bi bi-receipt"></i>
+                <p>No orders found for the selected filters</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile cards -->
+      <div class="hist-mob-list mobile-only" *ngIf="!isLoading">
+        <ng-container *ngIf="orders.length > 0; else mobEmpty">
+          <div class="hist-mob-card" *ngFor="let o of orders; trackBy: trackById">
+            <!-- Row 1: ID + Status + Date -->
+            <div class="hmc-top">
+              <span class="hmc-id">#{{ o.id }}</span>
+              <span class="st-pill"
+                [class.st-paid]="o.status==='Paid'"
+                [class.st-credit]="o.status==='Credit'"
+                [class.st-partial]="o.status==='Partial'">{{ o.status }}</span>
+              <span class="pm-badge hmc-pm">
+                <i class="bi"
+                  [class.bi-cash]="o.paymentType==='Cash'"
+                  [class.bi-phone]="o.paymentType==='UPI'"
+                  [class.bi-clock]="o.paymentType==='Credit'"></i>
+                {{ o.paymentType }}
+              </span>
+              <span class="hmc-date">{{ fmtDate(o.createdAt) }}</span>
+            </div>
+            <!-- Row 2: Items -->
+            <div class="hmc-items">
+              <span class="item-chip" *ngFor="let it of o.items">
+                {{ it.productName }}&nbsp;<strong>×{{ it.quantity }}</strong>
+              </span>
+            </div>
+            <!-- Row 3: Amounts -->
+            <div class="hmc-amounts">
+              <div class="hmc-amt-item">
+                <span class="hmc-amt-label">Total</span>
+                <span class="hmc-amt-val mono">₹{{ o.grandTotal | number }}</span>
+              </div>
+              <div class="hmc-amt-sep"></div>
+              <div class="hmc-amt-item">
+                <span class="hmc-amt-label">Paid</span>
+                <span class="hmc-amt-val mono green-txt">₹{{ o.paidAmount | number }}</span>
+              </div>
+              <div class="hmc-amt-sep" *ngIf="o.balance > 0"></div>
+              <div class="hmc-amt-item" *ngIf="o.balance > 0">
+                <span class="hmc-amt-label">Due</span>
+                <span class="hmc-amt-val mono red-txt">₹{{ o.balance | number }}</span>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #mobEmpty>
+          <div class="hist-empty-cell">
+            <i class="bi bi-receipt"></i><p>No orders found</p>
+          </div>
+        </ng-template>
+      </div>
+
+    </div><!-- /hist-body -->
+
+    <!-- ── Pagination footer ── -->
+    <div class="hist-footer" *ngIf="!isLoading">
+      <div class="hf-page-size">
+        <label>Rows:</label>
+        <select [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+          <option [value]="10">10</option>
+          <option [value]="25">25</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+        </select>
+      </div>
+
+      <div class="hf-pager">
+        <button class="pg-btn" (click)="goToPage(1)"
+          [disabled]="currentPage === 1" title="First">
+          <i class="bi bi-chevron-double-left"></i>
+        </button>
+        <button class="pg-btn" (click)="goToPage(currentPage - 1)"
+          [disabled]="currentPage === 1">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="pg-btn" *ngFor="let p of visiblePages"
+          [class.pg-active]="p === currentPage" (click)="goToPage(p)">
+          {{ p }}
+        </button>
+        <button class="pg-btn" (click)="goToPage(currentPage + 1)"
+          [disabled]="currentPage === totalPages">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+        <button class="pg-btn" (click)="goToPage(totalPages)"
+          [disabled]="currentPage === totalPages" title="Last">
+          <i class="bi bi-chevron-double-right"></i>
+        </button>
+      </div>
+
+      <span class="hf-info">
+        {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalCount) }}
+        of {{ totalCount }}
+      </span>
+    </div>
+
+  </div><!-- /hist-modal -->
+</div><!-- /hist-mask -->

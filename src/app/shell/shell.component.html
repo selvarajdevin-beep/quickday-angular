@@ -1,0 +1,418 @@
+<!-- src/app/shell/shell.component.html -->
+
+<!-- Mobile overlay -->
+<div class="mobile-overlay" [class.overlay-show]="mobileOpen()" (click)="closeMobile()"></div>
+
+<div class="app-shell" [class.sidebar-collapsed]="!sidebarOpen()">
+
+  <!-- ══════════════ SIDEBAR ════════════════════════════════════ -->
+  <aside class="sidebar" [class.sidebar-mobile-open]="mobileOpen()">
+
+    <button class="drawer-close-btn" (click)="closeMobile()">
+      <i class="bi bi-x-lg"></i>
+    </button>
+
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <!-- <div class="logo-icon" [style.background]="themeColor()">
+        <i class="bi bi-droplet-fill"></i>
+      </div> -->
+        <img 
+          src="logo/quickday-logo.png" 
+          alt="QuickDay" 
+          class="logo-img"
+        />      
+      <div class="logo-text" *ngIf="sidebarOpen()">
+        <span class="logo-name">QuickDay</span>
+        <span class="logo-biz" [title]="businessName()">{{ businessName() || currentUser()?.role }}</span>
+      </div>
+    </div>
+
+    <!-- Nav Sections -->
+    <nav class="sidebar-nav">
+      <ng-container *ngFor="let section of navSections()">
+        <ng-container *ngIf="!section.items.every(i => i['adminOnly'] && !isAdmin())">
+          <div class="nav-section-label" *ngIf="sidebarOpen()">{{ section.label }}</div>
+          <div class="nav-section-divider" *ngIf="!sidebarOpen()"></div>
+
+          <ng-container *ngFor="let item of section.items">
+            <a class="nav-item"
+               *ngIf="!item['adminOnly'] || isAdmin()"
+               [routerLink]="item.path"
+               [class.nav-active]="isActive(item.path)"
+               [ngStyle]="activeNavStyle(item.path)"
+               [title]="!sidebarOpen() ? item.label : ''"
+               (click)="closeMobile()">
+              <i class="bi" [class]="item.icon"
+                 [ngStyle]="activeIconStyle(item.path)"></i>
+              <span class="nav-label" *ngIf="sidebarOpen()">{{ item.label }}</span>
+              <span class="nav-badge"
+                    *ngIf="item.path==='/inventory' && lowStockAlert() > 0 && sidebarOpen()">
+                {{ lowStockAlert() }}
+              </span>
+            </a>
+          </ng-container>
+        </ng-container>
+      </ng-container>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <div class="sf-user" *ngIf="sidebarOpen()">
+        <div class="sf-avatar" [style.background]="avatarBg()">
+          {{ initials(currentUser()?.name || ownerName() || 'U') }}
+        </div>
+        <div class="sf-info">
+          <span class="sf-name">{{ currentUser()?.name || ownerName() }}</span>
+          <span class="sf-role">{{ currentUser()?.role }}</span>
+        </div>
+      </div>
+      <button class="sf-logout" (click)="logout()"
+              [class.sf-logout-full]="sidebarOpen()" title="Logout">
+        <i class="bi bi-box-arrow-right"></i>
+        <span *ngIf="sidebarOpen()" class="sf-logout-label">Logout</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══════════════ MAIN AREA ═════════════════════════════════ -->
+  <div class="main-area">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-toggle" (click)="toggleMobile()">
+          <i class="bi bi-list"></i>
+        </button>
+        <button class="collapse-btn" (click)="toggleSidebar()">
+          <i class="bi"
+             [class.bi-layout-sidebar]="sidebarOpen()"
+             [class.bi-layout-sidebar-inset]="!sidebarOpen()"></i>
+        </button>
+        <div class="mobile-logo">
+          <!-- <div class="mobile-logo-icon" [style.background]="themeColor()">
+            <i class="bi bi-droplet-fill"></i>
+          </div> -->
+
+          <img 
+            src="logo/quickday-logo.png" 
+            alt="QuickDay" 
+            class="logo-img"
+          />
+
+          <span class="mobile-logo-name">QuickDay</span>
+        </div>
+        <div class="page-title-wrap">
+          <h1 class="topbar-title">{{ getPageTitle() }}</h1>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+
+        <!-- Low stock alert chip (desktop) -->
+        <button class="topbar-alert"
+                *ngIf="lowStockAlert() > 0"
+                [routerLink]="'/inventory'"
+                title="{{ lowStockAlert() }} low stock items">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span class="topbar-alert-txt">{{ lowStockAlert() }} Low Stock</span>
+        </button>
+
+        <!-- ── Notifications bell ──────────────────────────────── -->
+        <div class="notif-wrap">
+          <button class="topbar-icon-btn" (click)="toggleNotif()">
+            <i class="bi bi-bell-fill"></i>
+            <!-- Badge: total live alerts (low stock + pending dues) -->
+            <span class="icon-badge" *ngIf="notifBadgeCount() > 0">
+              {{ notifBadgeCount() }}
+            </span>
+          </button>
+
+          <div class="notif-dropdown" *ngIf="notifOpen()">
+            <div class="nd-hdr">
+              <span>Notifications</span>
+              <span class="nd-count" *ngIf="notifBadgeCount() > 0">
+                {{ notifBadgeCount() }}
+              </span>
+            </div>
+
+            <!-- All clear state -->
+            <div class="nd-empty" *ngIf="notifBadgeCount() === 0">
+              <i class="bi bi-check-circle-fill"></i>
+              <span>All clear — no alerts right now</span>
+            </div>
+
+            <!-- Low stock alert — live from SharedStateService -->
+            <a class="nd-item nd-warn" routerLink="/inventory"
+               *ngIf="lowStockCount() > 0"
+               (click)="notifOpen.set(false)">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <div>
+                <div class="nd-text">
+                  {{ lowStockCount() }} product{{ lowStockCount() !== 1 ? 's are' : ' is' }} running low
+                </div>
+                <div class="nd-sub">Tap to check inventory</div>
+              </div>
+            </a>
+
+            <!-- Credit pending alert — live from SharedStateService -->
+            <a class="nd-item nd-red" routerLink="/customers"
+               *ngIf="totalCreditPending() > 0"
+               (click)="notifOpen.set(false)">
+              <i class="bi bi-cash-coin"></i>
+              <div>
+                <div class="nd-text">
+                  {{ fmtMoney(totalCreditPending()) }} pending dues
+                </div>
+                <div class="nd-sub">Tap to view customer balances</div>
+              </div>
+            </a>
+
+            <a class="nd-footer" routerLink="/dashboard"
+               (click)="notifOpen.set(false)">
+              Go to dashboard →
+            </a>
+          </div>
+        </div>
+
+        <!-- Quick new bill -->
+        <button class="topbar-new-bill"
+                [routerLink]="'/billing'"
+                [style.background]="themeColor()">
+          <i class="bi bi-plus-lg"></i>
+          <span class="new-bill-txt">New Bill</span>
+        </button>
+
+        <!-- User menu -->
+        <div class="user-menu-wrap">
+          <button class="user-avatar-btn" (click)="toggleUserMenu()">
+            <div class="ua-circle" [style.background]="avatarBg()">
+              {{ initials(currentUser()?.name || 'U') }}
+            </div>
+            <i class="bi bi-chevron-down ua-chevron hide-mobile"
+               [class.chevron-up]="userMenuOpen()"></i>
+          </button>
+          <div class="user-dropdown" *ngIf="userMenuOpen()">
+            <div class="ud-profile">
+              <div class="ud-avatar" [style.background]="avatarBg()">
+                {{ initials(currentUser()?.name || 'U') }}
+              </div>
+              <div>
+                <div class="ud-name">{{ currentUser()?.name }}</div>
+                <div class="ud-role">{{ currentUser()?.role }} · {{ businessName() }}</div>
+              </div>
+            </div>
+            <div class="ud-divider"></div>
+            <a class="ud-item" [routerLink]="'/settings'"
+               (click)="userMenuOpen.set(false)" *ngIf="isAdmin()">
+              <i class="bi bi-gear"></i> Settings
+            </a>
+            <a class="ud-item" [routerLink]="'/users'"
+               (click)="userMenuOpen.set(false)" *ngIf="isAdmin()">
+              <i class="bi bi-people"></i> Users & Roles
+            </a>
+            <div class="ud-divider"></div>
+            <button class="ud-item ud-logout" (click)="logout()">
+              <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- PAGE CONTENT -->
+    <main class="page-content">
+      <router-outlet></router-outlet>
+    </main>
+
+    <!-- FOOTER (desktop only) -->
+    <footer class="app-footer">
+      <span>{{ businessName() }} &copy; {{ currentYear }} · Built for all-in-one business management</span>
+      <span class="footer-version">v1.0.0</span>
+    </footer>
+
+  </div><!-- /main-area -->
+
+</div><!-- /app-shell -->
+
+<!-- ══════════════ MOBILE BOTTOM NAV BAR ═══════════════════ -->
+<!-- <nav class="bottom-nav" aria-label="Mobile navigation">
+  <a class="bn-item" [routerLink]="'/dashboard'"
+     [class.bn-active]="isActive('/dashboard')" (click)="closeMobile()">
+    <div class="bn-icon-wrap"
+         [style.background]="isActive('/dashboard') ? themeColor() + '22' : ''">
+      <i class="bi bi-speedometer2"
+         [style.color]="isActive('/dashboard') ? themeColor() : ''"></i>
+    </div>
+    <span class="bn-label"
+          [style.color]="isActive('/dashboard') ? themeColor() : ''">Dashboard</span>
+  </a>
+
+  <a class="bn-item" [routerLink]="'/billing'"
+     [class.bn-active]="isActive('/billing')" (click)="closeMobile()">
+    <div class="bn-icon-wrap"
+         [style.background]="isActive('/billing') ? themeColor() + '22' : ''">
+      <i class="bi bi-receipt-cutoff"
+         [style.color]="isActive('/billing') ? themeColor() : ''"></i>
+    </div>
+    <span class="bn-label"
+          [style.color]="isActive('/billing') ? themeColor() : ''">Billing</span>
+  </a>
+
+  <div class="bn-fab-wrap">
+    <button class="bn-fab" [routerLink]="'/billing'"
+            [style.background]="themeColor()"
+            (click)="closeMobile()" aria-label="New Bill">
+      <i class="bi bi-plus-lg"></i>
+    </button>
+    <span class="bn-label bn-fab-label">New Bill</span>
+  </div>
+
+  <a class="bn-item" [routerLink]="'/customers'"
+     [class.bn-active]="isActive('/customers')" (click)="closeMobile()">
+    <div class="bn-icon-wrap"
+         [style.background]="isActive('/customers') ? themeColor() + '22' : ''">
+      <i class="bi bi-people-fill"
+         [style.color]="isActive('/customers') ? themeColor() : ''"></i>
+    </div>
+    <span class="bn-label"
+          [style.color]="isActive('/customers') ? themeColor() : ''">Customers</span>
+  </a>
+
+  <button class="bn-item bn-more" (click)="toggleMobile()"
+          [class.bn-active]="mobileOpen()">
+    <div class="bn-icon-wrap bn-more-icon"
+         [style.background]="mobileOpen() ? themeColor() + '22' : ''">
+      <i class="bi bi-grid-fill"
+         [style.color]="mobileOpen() ? themeColor() : ''"></i>
+      <span class="bn-more-badge" *ngIf="lowStockAlert() > 0">
+        {{ lowStockAlert() }}
+      </span>
+    </div>
+    <span class="bn-label"
+          [style.color]="mobileOpen() ? themeColor() : ''">More</span>
+  </button>
+</nav> -->
+
+<!-- ══════════════ MOBILE BOTTOM NAV BAR ═══════════════════ -->
+<nav class="bottom-nav" aria-label="Mobile navigation">
+
+  <!-- ── SUPER ADMIN bottom nav ── -->
+  <ng-container *ngIf="isSuperAdmin()">
+    <a class="bn-item" [routerLink]="'/superadmin/dashboard'"
+       [class.bn-active]="isActive('/superadmin/dashboard')" (click)="closeMobile()">
+      <div class="bn-icon-wrap"
+           [style.background]="isActive('/superadmin/dashboard') ? themeColor() + '22' : ''">
+        <i class="bi bi-shield-fill-check"
+           [style.color]="isActive('/superadmin/dashboard') ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="isActive('/superadmin/dashboard') ? themeColor() : ''">Dashboard</span>
+    </a>
+
+    <a class="bn-item" [routerLink]="'/superadmin/shops'"
+       [class.bn-active]="isActive('/superadmin/shops')" (click)="closeMobile()">
+      <div class="bn-icon-wrap"
+           [style.background]="isActive('/superadmin/shops') ? themeColor() + '22' : ''">
+        <i class="bi bi-grid-fill"
+           [style.color]="isActive('/superadmin/shops') ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="isActive('/superadmin/shops') ? themeColor() : ''">Shops</span>
+    </a>
+
+    <a class="bn-item" [routerLink]="'/superadmin/billing'"
+       [class.bn-active]="isActive('/superadmin/billing')" (click)="closeMobile()">
+      <div class="bn-icon-wrap"
+           [style.background]="isActive('/superadmin/billing') ? themeColor() + '22' : ''">
+        <i class="bi bi-currency-dollar"
+           [style.color]="isActive('/superadmin/billing') ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="isActive('/superadmin/billing') ? themeColor() : ''">Billing</span>
+    </a>
+
+    <a class="bn-item" [routerLink]="'/account'"
+       [class.bn-active]="isActive('/account')" (click)="closeMobile()">
+      <div class="bn-icon-wrap"
+           [style.background]="isActive('/account') ? themeColor() + '22' : ''">
+        <i class="bi bi-person-circle"
+           [style.color]="isActive('/account') ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="isActive('/account') ? themeColor() : ''">Account</span>
+    </a>
+
+    <button class="bn-item bn-more" (click)="toggleMobile()"
+            [class.bn-active]="mobileOpen()">
+      <div class="bn-icon-wrap"
+           [style.background]="mobileOpen() ? themeColor() + '22' : ''">
+        <i class="bi bi-three-dots"
+           [style.color]="mobileOpen() ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="mobileOpen() ? themeColor() : ''">More</span>
+    </button>
+  </ng-container>
+
+  <!-- ── Regular user bottom nav ── -->
+  <ng-container *ngIf="!isSuperAdmin()">
+    <a class="bn-item" [routerLink]="'/dashboard'"
+       [class.bn-active]="isActive('/dashboard')" (click)="closeMobile()">
+      <div class="bn-icon-wrap"
+           [style.background]="isActive('/dashboard') ? themeColor() + '22' : ''">
+        <i class="bi bi-speedometer2"
+           [style.color]="isActive('/dashboard') ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="isActive('/dashboard') ? themeColor() : ''">Dashboard</span>
+    </a>
+
+    <a class="bn-item" [routerLink]="'/billing'"
+       [class.bn-active]="isActive('/billing')" (click)="closeMobile()">
+      <div class="bn-icon-wrap"
+           [style.background]="isActive('/billing') ? themeColor() + '22' : ''">
+        <i class="bi bi-receipt-cutoff"
+           [style.color]="isActive('/billing') ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="isActive('/billing') ? themeColor() : ''">Billing</span>
+    </a>
+
+    <!-- FAB: New Bill (centre) -->
+    <div class="bn-fab-wrap">
+      <button class="bn-fab" [routerLink]="'/billing'"
+              [style.background]="themeColor()"
+              (click)="closeMobile()" aria-label="New Bill">
+        <i class="bi bi-plus-lg"></i>
+      </button>
+      <span class="bn-label bn-fab-label">New Bill</span>
+    </div>
+
+    <a class="bn-item" [routerLink]="'/customers'"
+       [class.bn-active]="isActive('/customers')" (click)="closeMobile()">
+      <div class="bn-icon-wrap"
+           [style.background]="isActive('/customers') ? themeColor() + '22' : ''">
+        <i class="bi bi-people-fill"
+           [style.color]="isActive('/customers') ? themeColor() : ''"></i>
+      </div>
+      <span class="bn-label"
+            [style.color]="isActive('/customers') ? themeColor() : ''">Customers</span>
+    </a>
+
+    <button class="bn-item bn-more" (click)="toggleMobile()"
+            [class.bn-active]="mobileOpen()">
+      <div class="bn-icon-wrap bn-more-icon"
+           [style.background]="mobileOpen() ? themeColor() + '22' : ''">
+        <i class="bi bi-grid-fill"
+           [style.color]="mobileOpen() ? themeColor() : ''"></i>
+        <span class="bn-more-badge" *ngIf="lowStockAlert() > 0">
+          {{ lowStockAlert() }}
+        </span>
+      </div>
+      <span class="bn-label"
+            [style.color]="mobileOpen() ? themeColor() : ''">More</span>
+    </button>
+  </ng-container>
+
+</nav>

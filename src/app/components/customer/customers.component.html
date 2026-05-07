@@ -1,0 +1,436 @@
+<div class="customers-page">
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <div class="page-header">
+    <div><h2 class="page-title">Customers</h2><p class="page-subtitle">Manage customers, dues &amp; payment history</p></div>
+    <button class="btn-add" (click)="openAdd()"><i class="bi bi-person-plus-fill"></i> <span class="btn-add-label">Add Customer</span></button>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-card">
+      <div class="ki ki-b"><i class="bi bi-people-fill"></i></div>
+      <div><div class="kl">Total</div><div class="kv">{{ allCustomers().length }}</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="ki ki-g"><i class="bi bi-check-circle-fill"></i></div>
+      <div><div class="kl">Active</div><div class="kv">{{ activeCount() }}</div></div>
+    </div>
+    <div class="kpi-card kpi-type" [class.kpi-active-type]="filterType()==='Hotel'"
+         (click)="filterType.set(filterType()==='Hotel' ? 'all' : 'Hotel'); onFilter()">
+      <div class="ki ki-hotel"><i class="bi bi-building"></i></div>
+      <div><div class="kl">Hotels</div><div class="kv">{{ hotelCount() }}</div><div class="ks">tap to filter</div></div>
+    </div>
+    <div class="kpi-card kpi-type" [class.kpi-active-type]="filterType()==='Home'"
+         (click)="filterType.set(filterType()==='Home' ? 'all' : 'Home'); onFilter()">
+      <div class="ki ki-home"><i class="bi bi-house-fill"></i></div>
+      <div><div class="kl">Homes</div><div class="kv">{{ homeCount() }}</div><div class="ks">tap to filter</div></div>
+    </div>
+    <div class="kpi-card kpi-due" [class.kpi-active]="filterDue()" (click)="filterDue.update(v=>!v); onFilter()">
+      <div class="ki ki-r"><i class="bi bi-exclamation-circle-fill"></i></div>
+      <div>
+        <div class="kl">Pending Due</div>
+        <div class="kv">₹{{ totalDueAmount() | number }}</div>
+        <div class="ks">{{ customersWithDue() }} customers · tap to filter</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Search by name, phone or address…"
+        [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event); onFilter()" />
+      <button class="clr-btn" *ngIf="searchQuery()" (click)="searchQuery.set(''); onFilter()"><i class="bi bi-x"></i></button>
+    </div>
+
+    <div class="seg-ctrl">
+      <button [class.seg-on]="filterStatus()==='all'"      (click)="filterStatus.set('all'); onFilter()">All</button>
+      <button [class.seg-on]="filterStatus()==='active'"   (click)="filterStatus.set('active'); onFilter()">Active</button>
+      <button [class.seg-on]="filterStatus()==='inactive'" (click)="filterStatus.set('inactive'); onFilter()">Inactive</button>
+    </div>
+
+    <div class="seg-ctrl">
+      <button [class.seg-on]="filterType()==='all'"   (click)="filterType.set('all'); onFilter()">All Types</button>
+      <button [class.seg-on]="filterType()==='Hotel'" (click)="filterType.set('Hotel'); onFilter()">
+        <i class="bi bi-building"></i> Hotel
+      </button>
+      <button [class.seg-on]="filterType()==='Home'"  (click)="filterType.set('Home'); onFilter()">
+        <i class="bi bi-house-fill"></i> Home
+      </button>
+    </div>
+
+    <div class="due-chip" *ngIf="filterDue()">
+      <i class="bi bi-funnel-fill"></i> Due only
+      <button (click)="filterDue.set(false); onFilter()"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="due-chip type-chip-active" *ngIf="filterType()!=='all'">
+      <i class="bi" [class.bi-building]="filterType()==='Hotel'" [class.bi-house-fill]="filterType()==='Home'"></i>
+      {{ filterType() }} only
+      <button (click)="filterType.set('all'); onFilter()"><i class="bi bi-x"></i></button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       DESKTOP: Table (hidden on mobile)
+  ═══════════════════════════════════════════════════ -->
+  <div class="table-card desktop-only">
+    <table class="cust-table">
+      <thead><tr>
+        <th>Customer</th>
+        <th>Type</th>
+        <th>Phone</th>
+        <th>Default Price</th>
+        <th class="num-th">Orders</th>
+        <th class="num-th">Due Amount</th>
+        <!-- <th>Last Order</th> -->
+        <th>Status</th>
+        <th>Actions</th>
+      </tr></thead>
+      <tbody>
+        <tr *ngFor="let c of pagedCustomers(); trackBy: trackById" (click)="openDrawer(c)" class="table-row">
+          <td>
+            <div class="cust-cell">
+              <div class="av" [style.background]="avatarColor(c.id)">{{ initials(c.name) }}</div>
+              <div>
+                <span class="cn">{{ c.name }}</span>
+                <span class="cadr">{{ c.address }}</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="type-badge" [class]="typeClass(c.customerType)">
+              <i class="bi" [class.bi-building]="c.customerType==='Hotel'" [class.bi-house-fill]="c.customerType==='Home'"></i>
+              {{ c.customerType }}
+            </span>
+          </td>
+          <td><span class="ph-txt"><i class="bi bi-telephone"></i> {{ c.phone }}</span></td>
+          <td><span class="ptag">₹{{ c.defaultPricePerCan }}/can</span></td>
+          <td class="num-td"><span class="ob">{{ c.totalOrders }}</span></td>
+          <td class="num-td">
+            <span class="due-pill" [class.dp-zero]="c.totalDue===0" [class.dp-pos]="c.totalDue>0">
+              {{ c.totalDue===0 ? '✓ Clear' : '₹'+(c.totalDue|number) }}
+            </span>
+          </td>
+          <!-- <td><span class="tt">{{ timeAgo(c.lastOrderDate) }}</span></td> -->
+          <td (click)="$event.stopPropagation()">
+            <label class="tog">
+              <input type="checkbox" [checked]="c.active" (change)="toggleStatus(c,$event)" />
+              <span class="tog-sl"></span>
+            </label>
+          </td>
+          <td (click)="$event.stopPropagation()">
+            <div class="row-acts">
+              <!-- <button class="act-btn act-pay" *ngIf="c.totalDue>0" (click)="openPaymentModal(c,$event)" title="Collect Payment">
+                <i class="bi bi-cash-coin"></i> Collect
+              </button> -->
+              <button class="act-btn act-hist" (click)="openHistory(c,$event)">
+                <i class="bi bi-clock-history"></i> History
+              </button>
+              <button class="act-btn act-edit" (click)="openEdit(c,$event)">
+                <i class="bi bi-pencil-fill"></i> Edit
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="pagedCustomers().length===0">
+          <td colspan="9" class="empty-cell"><i class="bi bi-people"></i><br>No customers found</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════
+       MOBILE: Card List (hidden on desktop)
+  ═══════════════════════════════════════════════════ -->
+  <div class="mobile-only mobile-list">
+    <ng-container *ngIf="pagedCustomers().length > 0; else mobileEmpty">
+      <div class="mob-card"
+           *ngFor="let c of pagedCustomers(); trackBy: trackById"
+           (click)="openDrawer(c)">
+
+        <!-- Card Header: Avatar + Name + Type badge + Toggle -->
+        <div class="mob-card-header">
+          <div class="av" [style.background]="avatarColor(c.id)">{{ initials(c.name) }}</div>
+          <div class="mob-card-info">
+            <div class="mob-card-name-row">
+              <span class="cn">{{ c.name }}</span>
+              <span class="type-badge" [class]="typeClass(c.customerType)">
+                <i class="bi" [class.bi-building]="c.customerType==='Hotel'" [class.bi-house-fill]="c.customerType==='Home'"></i>
+                {{ c.customerType }}
+              </span>
+            </div>
+            <span class="cadr">{{ c.address }}</span>
+          </div>
+          <!-- Status toggle — stop click from opening drawer -->
+          <label class="tog" (click)="$event.stopPropagation()">
+            <input type="checkbox" [checked]="c.active" (change)="toggleStatus(c,$event)" />
+            <span class="tog-sl"></span>
+          </label>
+        </div>
+
+        <!-- Card Body: Key details row -->
+        <div class="mob-card-meta">
+          <div class="mob-meta-item">
+            <i class="bi bi-telephone"></i>
+            <span>{{ c.phone }}</span>
+          </div>
+          <div class="mob-meta-item">
+            <i class="bi bi-bag-check"></i>
+            <span>{{ c.totalOrders }} orders</span>
+          </div>
+          <div class="mob-meta-item">
+            <i class="bi bi-clock"></i>
+            <span>{{ timeAgo(c.lastOrderDate) }}</span>
+          </div>
+          <div class="mob-meta-item">
+            <i class="bi bi-droplet-fill"></i>
+            <span class="ptag-sm">₹{{ c.defaultPricePerCan }}/can</span>
+          </div>
+        </div>
+
+        <!-- Card Footer: Due pill + Actions -->
+        <div class="mob-card-footer" (click)="$event.stopPropagation()">
+          <span class="due-pill" [class.dp-zero]="c.totalDue===0" [class.dp-pos]="c.totalDue>0">
+            {{ c.totalDue===0 ? '✓ Clear' : '₹'+(c.totalDue|number)+' due' }}
+          </span>
+          <div class="mob-actions">
+            <!-- <button class="act-btn act-pay" *ngIf="c.totalDue>0" (click)="openPaymentModal(c,$event)">
+              <i class="bi bi-cash-coin"></i> Collect
+            </button> -->
+            <button class="act-btn act-hist" (click)="openHistory(c,$event)">
+              <i class="bi bi-clock-history"></i>
+            </button>
+            <button class="act-btn act-edit" (click)="openEdit(c,$event)">
+              <i class="bi bi-pencil-fill"></i> Edit
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-template #mobileEmpty>
+      <div class="mob-empty">
+        <i class="bi bi-people"></i>
+        <p>No customers found</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- Pagination (shared) -->
+  <div class="pagination-bar" *ngIf="totalPages() > 1">
+    <button class="pg-btn" (click)="goToPage(currentPage()-1)" [disabled]="currentPage()===1"><i class="bi bi-chevron-left"></i></button>
+    <button class="pg-btn" *ngFor="let p of pages()" [class.pg-active]="p===currentPage()" (click)="goToPage(p)">{{ p }}</button>
+    <button class="pg-btn" (click)="goToPage(currentPage()+1)" [disabled]="currentPage()===totalPages()"><i class="bi bi-chevron-right"></i></button>
+    <span class="pg-info">{{ filteredCustomers().length }} customers · Page {{ currentPage() }} of {{ totalPages() }}</span>
+  </div>
+</div>
+
+<!-- ── DRAWER ─────────────────────────────────────── -->
+<div class="drawer-bg" *ngIf="showDrawer()" (click)="closeDrawer()"></div>
+<div class="drawer" [class.drawer-open]="showDrawer()">
+  <ng-container *ngIf="drawerCustomer() as c">
+    <div class="dr-hdr">
+      <div class="dr-av" [style.background]="avatarColor(c.id)">{{ initials(c.name) }}</div>
+      <div class="dr-info">
+        <h3>{{ c.name }}</h3>
+        <div class="dr-info-row">
+          <span class="type-badge" [class]="typeClass(c.customerType)" style="font-size:10px;padding:2px 7px">
+            <i class="bi" [class.bi-building]="c.customerType==='Hotel'" [class.bi-house-fill]="c.customerType==='Home'"></i>
+            {{ c.customerType }}
+          </span>
+          <span><i class="bi bi-telephone"></i> {{ c.phone }}</span>
+        </div>
+      </div>
+      <button class="dr-close" (click)="closeDrawer()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="dr-stats">
+      <div class="ds"><span class="ds-v">{{ c.totalOrders }}</span><span class="ds-l">Orders</span></div>
+      <div class="ds-div"></div>
+      <div class="ds">
+        <span class="ds-v" [class.ds-red]="c.totalDue>0">₹{{ c.totalDue | number }}</span>
+        <span class="ds-l">Due</span>
+      </div>
+      <div class="ds-div"></div>
+      <div class="ds"><span class="ds-v">₹{{ c.defaultPricePerCan }}</span><span class="ds-l">Price/Can</span></div>
+    </div>
+
+    <div class="dr-tabs">
+      <button [class.dt-on]="drawerView()==='orders'"   (click)="switchDrawerView('orders')">Orders (last 5)</button>
+      <button [class.dt-on]="drawerView()==='payments'" (click)="switchDrawerView('payments')">Payments (last 5)</button>
+    </div>
+
+    <div class="dr-body">
+      <div class="dr-loading" *ngIf="drawerLoading()"><div class="spin"></div></div>
+
+      <ng-container *ngIf="!drawerLoading() && drawerView()==='orders'">
+        <div class="dr-order" *ngFor="let o of drawerOrders()">
+          <div class="dro-top">
+            <span class="dro-id">#{{ o.id }}</span>
+            <span class="dr-st"
+              [class.dst-paid]="o.status==='Paid'"
+              [class.dst-credit]="o.status==='Credit'"
+              [class.dst-partial]="o.status==='Partial'">{{ o.status }}</span>
+          </div>
+          <div class="dro-items">{{ o.items.map(i=>i.productName+' ×'+i.quantity).join(', ') }}</div>
+          <div class="dro-bot">
+            <span class="dro-total">₹{{ o.grandTotal | number }}</span>
+            <span *ngIf="o.status==='Partial'" class="dro-paid">Paid: ₹{{ o.paidAmount | number }}</span>
+            <span *ngIf="o.status!=='Paid'" class="dro-bal">Bal: ₹{{ o.balance | number }}</span>
+            <span class="dro-time">{{ fmtDate(o.createdAt) }}</span>
+          </div>
+          <div class="dro-collect" *ngIf="o.status!=='Paid'" (click)="$event.stopPropagation()">
+            <button class="btn-collect-sm" (click)="openPaymentModal(c, $event, o)">
+              <i class="bi bi-cash-coin"></i> Collect ₹{{ o.balance | number }}
+            </button>
+          </div>
+        </div>
+        <div class="dr-empty" *ngIf="drawerOrders().length===0">
+          <i class="bi bi-receipt"></i> No orders yet
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="!drawerLoading() && drawerView()==='payments'">
+        <div class="dr-pay" *ngFor="let p of drawerPayments()">
+          <div class="drp-icon"><i class="bi bi-cash-coin"></i></div>
+          <div class="drp-body">
+            <div class="drp-amt">₹{{ p.amount | number }}</div>
+            <div class="drp-note">{{ p.note }}</div>
+            <div class="drp-order" *ngIf="p.orderId">Order #{{ p.orderId }}</div>
+          </div>
+          <div class="drp-right">
+            <span class="drp-type">{{ p.paymentType }}</span>
+            <span class="drp-time">{{ fmtDate(p.date) }}</span>
+          </div>
+        </div>
+        <div class="dr-empty" *ngIf="drawerPayments().length===0">
+          <i class="bi bi-wallet2"></i> No payments recorded
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- <div class="dr-footer" *ngIf="c.totalDue > 0">
+      <button class="btn-collect" (click)="openPaymentModal(c, $event)">
+        <i class="bi bi-cash-coin"></i> Collect ₹{{ c.totalDue | number }}
+      </button>
+    </div> -->
+  </ng-container>
+</div>
+
+<!-- ── ADD/EDIT MODAL ────────────────────────────── -->
+<div class="modal-mask" *ngIf="showModal()" (click)="closeModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-hdr">
+      <h3>{{ editingCustomer() ? 'Edit Customer' : 'Add Customer' }}</h3>
+      <button class="modal-x" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label>Name <span class="req">*</span></label>
+        <input class="fi" type="text" placeholder="Customer name" [(ngModel)]="formData.name" />
+      </div>
+      <div class="fg">
+        <label>Phone <span class="req">*</span></label>
+        <input class="fi" type="tel" placeholder="10-digit mobile" [(ngModel)]="formData.phone" />
+      </div>
+      <div class="fg">
+        <label>Customer Type <span class="req">*</span></label>
+        <div class="type-select-grid">
+          <button type="button" class="type-sel-btn" [class.type-sel-hotel]="formData.customerType==='Hotel'"
+            (click)="formData.customerType = 'Hotel'">
+            <i class="bi bi-building"></i> Hotel / Commercial
+          </button>
+          <button type="button" class="type-sel-btn" [class.type-sel-home]="formData.customerType==='Home'"
+            (click)="formData.customerType = 'Home'">
+            <i class="bi bi-house-fill"></i> Home / Residential
+          </button>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Address</label>
+        <textarea class="fi fi-area" rows="2" [(ngModel)]="formData.address"></textarea>
+      </div>
+      <div class="fg">
+        <label>Default Price per Can (₹) — for 20L Can</label>
+        <input class="fi" type="number" min="0" [(ngModel)]="formData.defaultPricePerCan" />
+      </div>
+      <div class="fg tog-row">
+        <label>Status</label>
+        <label class="tog"><input type="checkbox" [(ngModel)]="formData.active" /><span class="tog-sl"></span></label>
+        <span class="tog-lbl">{{ formData.active ? 'Active' : 'Inactive' }}</span>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-save" (click)="save()" [disabled]="isSaving()">
+        <span class="spin-sm" *ngIf="isSaving()"></span>
+        <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+        {{ editingCustomer() ? 'Update' : 'Add Customer' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── COLLECT PAYMENT MODAL ──────────────────────── -->
+<div class="modal-mask" *ngIf="showPaymentModal()" (click)="closePaymentModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-hdr">
+      <div>
+        <h3>Collect Payment</h3>
+        <p class="modal-sub">
+          {{ paymentCustomer()?.name }}
+          <span *ngIf="paymentOrderId()" class="modal-order-ref"> · Order #{{ paymentOrderId() }}</span>
+        </p>
+      </div>
+      <button class="modal-x" (click)="closePaymentModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="pay-info-row">
+        <span>{{ paymentOrderId() ? 'Order Balance' : 'Total Due' }}</span>
+        <strong>₹{{ paymentModalDue() | number }}</strong>
+      </div>
+      <div class="fg">
+        <label>Amount (₹) <span class="req">*</span></label>
+        <div class="qty-row">
+          <button class="qty-b" (click)="paymentAmount.set(Math.max(0, paymentAmount()-10))">−</button>
+          <input type="number" class="fi"
+            style="text-align:center;font-family:'Space Mono',monospace;font-weight:700;font-size:18px"
+            [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" />
+          <button class="qty-b" (click)="paymentAmount.set(paymentAmount()+10)">+</button>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Payment Mode</label>
+        <div class="pay-type-grid">
+          <button class="pt-grid-btn" [class.pt-active]="paymentType()==='Cash'" (click)="paymentType.set('Cash')"><i class="bi bi-cash"></i> Cash</button>
+          <button class="pt-grid-btn" [class.pt-active]="paymentType()==='UPI'"  (click)="paymentType.set('UPI')"><i class="bi bi-phone"></i> UPI</button>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Note (optional)</label>
+        <input class="fi" type="text" placeholder="e.g. March dues"
+          [ngModel]="paymentNote()" (ngModelChange)="paymentNote.set($event)" />
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closePaymentModal()">Cancel</button>
+      <button class="btn-save" (click)="savePayment()">
+        <i class="bi bi-check-lg"></i> Confirm Collection
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CUSTOMER HISTORY MODAL ─────────────────────── -->
+<app-customer-history-modal
+  [customer]="historyCustomer()"
+  [visible]="showHistoryModal()"
+  (visibleChange)="showHistoryModal.set($event)">
+</app-customer-history-modal>

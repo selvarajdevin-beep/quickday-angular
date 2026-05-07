@@ -1,0 +1,557 @@
+<div class="users-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Users & Roles</h2>
+      <p class="page-subtitle">Manage staff accounts and HR details</p>
+    </div>
+    <button class="btn-add" (click)="openAdd()">
+      <i class="bi bi-person-plus-fill"></i>
+      <span class="btn-add-label">Add User</span>
+    </button>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-card">
+      <div class="kpi-icon k-blue"><i class="bi bi-people-fill"></i></div>
+      <div><div class="kpi-lbl">Total</div><div class="kpi-val">{{ allUsers().length }}</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon k-green"><i class="bi bi-check-circle-fill"></i></div>
+      <div><div class="kpi-lbl">Active</div><div class="kpi-val">{{ activeCount() }}</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon k-purple"><i class="bi bi-shield-fill-check"></i></div>
+      <div><div class="kpi-lbl">Admins</div><div class="kpi-val">{{ adminCount() }}</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon k-orange"><i class="bi bi-person-workspace"></i></div>
+      <div><div class="kpi-lbl">Workers</div><div class="kpi-val">{{ workerCount() }}</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon k-teal"><i class="bi bi-currency-rupee"></i></div>
+      <div>
+        <div class="kpi-lbl">Payroll</div>
+        <div class="kpi-val">{{ currency() }}{{ totalSalary().toLocaleString('en-IN') }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <i class="bi bi-search search-icon"></i>
+      <input class="search-input" type="text" placeholder="Search name, phone, email…"
+        [ngModel]="searchQuery()" (ngModelChange)="onSearch($event)" />
+      <button class="search-clear" *ngIf="searchQuery()" (click)="searchQuery.set(''); currentPage.set(1)">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <div class="filter-chips">
+      <select class="filter-sel" [ngModel]="filterRole()" (ngModelChange)="onRoleFilter($event)">
+        <option value="All">All Roles</option>
+        <option value="Admin">Admin</option>
+        <option value="Worker">Worker</option>
+      </select>
+      <select class="filter-sel" [ngModel]="filterStatus()" (ngModelChange)="onStatusFilter($event)">
+        <option value="All">All Status</option>
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      <button class="btn-clear-filters"
+        *ngIf="searchQuery() || filterRole()!=='All' || filterStatus()!=='All'"
+        (click)="clearFilters()">
+        <i class="bi bi-x-circle"></i> Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-row" *ngIf="isLoading()">
+    <div class="spin"></div><span>Loading users…</span>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       DESKTOP VIEW — Table (hidden on mobile)
+       ════════════════════════════════════════════════════ -->
+  <div class="table-card desktop-only" *ngIf="!isLoading()">
+
+    <div class="empty-state" *ngIf="pagedUsers().length === 0">
+      <i class="bi bi-person-x-fill"></i>
+      <p>No users match your search</p>
+      <button class="btn-link" (click)="clearFilters()">Clear filters</button>
+    </div>
+
+    <div *ngIf="pagedUsers().length > 0">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th class="th-user">User</th>
+            <th class="th-phone">Phone</th>
+            <th class="th-role">Role</th>
+            <th class="th-desig">Designation</th>
+            <th class="th-salary">Salary / mo</th>
+            <th class="th-status">Status</th>
+            <th class="th-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let u of pagedUsers(); trackBy: trackById"
+              [class.row-inactive]="u.status==='Inactive'"
+              class="table-row"
+              (click)="openDetail(u)">
+
+            <td class="td-user">
+              <div class="user-cell">
+                <div class="row-avatar" [style.background]="avatarColor(u.id)">{{ initials(u.name) }}</div>
+                <div>
+                  <div class="row-name">{{ u.name }}</div>
+                  <div class="row-sub" *ngIf="u.email">{{ u.email }}</div>
+                  <div class="row-sub" *ngIf="!u.email">{{ u.phone }}</div>
+                </div>
+              </div>
+            </td>
+
+            <td class="td-phone">{{ u.phone }}</td>
+
+            <td class="td-role">
+              <span class="role-chip" [class.chip-admin]="u.role==='Admin'" [class.chip-worker]="u.role==='Worker'">
+                <i class="bi" [class.bi-shield-fill-check]="u.role==='Admin'" [class.bi-person-workspace]="u.role==='Worker'"></i>
+                {{ u.role }}
+              </span>
+            </td>
+
+            <td class="td-desig">
+              <span *ngIf="u.designation">{{ u.designation }}</span>
+              <span class="row-empty" *ngIf="!u.designation">—</span>
+            </td>
+
+            <td class="td-salary">
+              <span class="salary-chip" *ngIf="u.salaryDetails?.monthlySalary">{{ formatSalary(u) }}</span>
+              <span class="row-empty" *ngIf="!u.salaryDetails?.monthlySalary">—</span>
+            </td>
+
+            <td class="td-status" (click)="$event.stopPropagation()">
+              <div class="status-cell">
+                <label class="tog">
+                  <input type="checkbox" [checked]="u.status==='Active'" (change)="toggleStatus(u)" />
+                  <span class="tog-sl"></span>
+                </label>
+                <span class="status-txt" [class.st-active]="u.status==='Active'" [class.st-inactive]="u.status==='Inactive'">
+                  {{ u.status }}
+                </span>
+              </div>
+            </td>
+
+            <td class="td-actions" (click)="$event.stopPropagation()">
+              <div class="action-group">
+                <button class="ua-btn ua-reset" (click)="openReset(u)" title="Reset Password">
+                  <i class="bi bi-lock-fill"></i>
+                </button>
+                <button class="ua-btn ua-edit" (click)="openEdit(u)" title="Edit">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="ua-btn ua-del" (click)="confirmDelete(u)" title="Delete"
+                  [disabled]="u.role==='Admin' && adminCount()===1">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      <div class="pagination-bar">
+        <span class="pg-info">{{ showRange }}</span>
+        <div class="pg-controls">
+          <button class="pg-btn" [disabled]="currentPage()===1" (click)="goToPage(1)" title="First">
+            <i class="bi bi-chevron-double-left"></i>
+          </button>
+          <button class="pg-btn" [disabled]="currentPage()===1" (click)="prevPage()">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <button class="pg-btn pg-num" *ngFor="let p of pageNumbers()"
+            [class.pg-active]="p===currentPage()" (click)="goToPage(p)">{{ p }}</button>
+          <button class="pg-btn" [disabled]="currentPage()===totalPages()" (click)="nextPage()">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+          <button class="pg-btn" [disabled]="currentPage()===totalPages()" (click)="goToPage(totalPages())" title="Last">
+            <i class="bi bi-chevron-double-right"></i>
+          </button>
+        </div>
+        <div class="pg-size">
+          <span>Rows:</span>
+          <select class="filter-sel pg-sel" [ngModel]="pageSize()" (ngModelChange)="pageSize.set(+$event); currentPage.set(1)">
+            <option [value]="5">5</option>
+            <option [value]="10">10</option>
+            <option [value]="25">25</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       MOBILE VIEW — Cards (hidden on desktop)
+       ════════════════════════════════════════════════════ -->
+  <div class="mobile-only" *ngIf="!isLoading()">
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="pagedUsers().length === 0">
+      <i class="bi bi-person-x-fill"></i>
+      <p>No users match your search</p>
+      <button class="btn-link" (click)="clearFilters()">Clear filters</button>
+    </div>
+
+    <!-- User Cards List -->
+    <div class="user-cards-list" *ngIf="pagedUsers().length > 0">
+      <div
+        class="user-card"
+        *ngFor="let u of pagedUsers(); trackBy: trackById"
+        [class.card-inactive]="u.status==='Inactive'"
+        (click)="openDetail(u)">
+
+        <!-- Card Top Row: Avatar + Name + Role Badge -->
+        <div class="mc-top">
+          <div class="mc-avatar" [style.background]="avatarColor(u.id)">{{ initials(u.name) }}</div>
+          <div class="mc-info">
+            <div class="mc-name">{{ u.name }}</div>
+            <div class="mc-designation" *ngIf="u.designation">{{ u.designation }}</div>
+            <div class="mc-designation text-muted" *ngIf="!u.designation">{{ u.role }}</div>
+          </div>
+          <span class="role-chip" [class.chip-admin]="u.role==='Admin'" [class.chip-worker]="u.role==='Worker'">
+            <i class="bi" [class.bi-shield-fill-check]="u.role==='Admin'" [class.bi-person-workspace]="u.role==='Worker'"></i>
+            {{ u.role }}
+          </span>
+        </div>
+
+        <!-- Card Meta Row: Phone, Salary -->
+        <div class="mc-meta">
+          <div class="mc-meta-item">
+            <i class="bi bi-telephone"></i>
+            <span>{{ u.phone }}</span>
+          </div>
+          <div class="mc-meta-item" *ngIf="u.salaryDetails?.monthlySalary">
+            <i class="bi bi-currency-rupee"></i>
+            <span class="salary-chip">{{ formatSalary(u) }}</span>
+          </div>
+          <div class="mc-meta-item" *ngIf="u.email">
+            <i class="bi bi-envelope"></i>
+            <span class="mc-email">{{ u.email }}</span>
+          </div>
+        </div>
+
+        <!-- Card Footer: Status toggle + Action buttons -->
+        <div class="mc-footer" (click)="$event.stopPropagation()">
+          <div class="status-cell">
+            <label class="tog">
+              <input type="checkbox" [checked]="u.status==='Active'" (change)="toggleStatus(u)" />
+              <span class="tog-sl"></span>
+            </label>
+            <span class="status-txt" [class.st-active]="u.status==='Active'" [class.st-inactive]="u.status==='Inactive'">
+              {{ u.status }}
+            </span>
+          </div>
+          <div class="action-group">
+            <button class="ua-btn ua-reset" (click)="openReset(u)" title="Reset Password">
+              <i class="bi bi-lock-fill"></i>
+            </button>
+            <button class="ua-btn ua-edit" (click)="openEdit(u)" title="Edit">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="ua-btn ua-del" (click)="confirmDelete(u)" title="Delete"
+              [disabled]="u.role==='Admin' && adminCount()===1">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Pagination -->
+    <div class="mobile-pagination" *ngIf="pagedUsers().length > 0">
+      <span class="pg-info">{{ showRange }}</span>
+      <div class="pg-controls">
+        <button class="pg-btn" [disabled]="currentPage()===1" (click)="prevPage()">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="pg-btn pg-num" *ngFor="let p of pageNumbers()"
+          [class.pg-active]="p===currentPage()" (click)="goToPage(p)">{{ p }}</button>
+        <button class="pg-btn" [disabled]="currentPage()===totalPages()" (click)="nextPage()">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /mobile-only -->
+
+</div><!-- /users-page -->
+
+
+<!-- ══ USER DETAIL SIDE DRAWER ══════════════════════════ -->
+<div class="drawer-bg" *ngIf="showDetailDrawer()" (click)="closeDetail()"></div>
+<div class="drawer" [class.drawer-open]="showDetailDrawer()">
+  <ng-container *ngIf="detailUser() as u">
+    <div class="dr-hdr">
+      <div class="dr-user-hdr">
+        <div class="dr-avatar" [style.background]="avatarColor(u.id)">{{ initials(u.name) }}</div>
+        <div>
+          <h3>{{ u.name }}</h3>
+          <p>{{ u.designation || ('— ' + u.role) }}</p>
+        </div>
+      </div>
+      <button class="dr-close" (click)="closeDetail()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="dr-body">
+      <div class="dr-section">
+        <div class="dr-sec-title">Contact &amp; Account</div>
+        <div class="dr-row"><i class="bi bi-telephone"></i><span>{{ u.phone }}</span></div>
+        <div class="dr-row" *ngIf="u.email"><i class="bi bi-envelope"></i><span>{{ u.email }}</span></div>
+        <div class="dr-row">
+          <i class="bi bi-shield-check"></i>
+          <span class="role-chip" [class.chip-admin]="u.role==='Admin'" [class.chip-worker]="u.role==='Worker'"
+            style="font-size:11px;padding:2px 9px">{{ u.role }}</span>
+        </div>
+        <div class="dr-row">
+          <i class="bi bi-circle-fill"
+            [style.color]="u.status==='Active'?'#00C17B':'#9CA3AF'" style="font-size:7px;margin-top:4px"></i>
+          <span [style.color]="u.status==='Active'?'#00C17B':'#9CA3AF'" style="font-weight:600">{{ u.status }}</span>
+        </div>
+        <div class="dr-row" *ngIf="u.address"><i class="bi bi-geo-alt"></i><span>{{ u.address }}</span></div>
+        <div class="dr-row" *ngIf="u.emergencyContact">
+          <i class="bi bi-heart-pulse"></i><span>Emergency: {{ u.emergencyContact }}</span>
+        </div>
+      </div>
+
+      <div class="dr-section">
+        <div class="dr-sec-title">Employment</div>
+        <div class="dr-row" *ngIf="u.designation">
+          <i class="bi bi-person-badge"></i><span>{{ u.designation }}</span>
+        </div>
+        <div class="dr-row">
+          <i class="bi bi-calendar-event"></i>
+          <span>Joined: <strong>{{ formatDate(u.dateOfJoining) }}</strong></span>
+        </div>
+        <div class="dr-row">
+          <i class="bi bi-clock"></i><span>Last login: {{ timeAgo(u.lastLogin) }}</span>
+        </div>
+        <div class="dr-row">
+          <i class="bi bi-calendar-plus"></i>
+          <span>Added: {{ formatDate(u.createdAt) }}</span>
+        </div>
+        <div class="dr-row" *ngIf="u.notes">
+          <i class="bi bi-sticky"></i><span>{{ u.notes }}</span>
+        </div>
+      </div>
+
+      <div class="dr-section" *ngIf="u.salaryDetails?.monthlySalary">
+        <div class="dr-sec-title">Salary</div>
+        <div class="dr-row">
+          <i class="bi bi-currency-rupee"></i>
+          <span><strong>{{ formatSalary(u) }}</strong> — Monthly Fixed</span>
+        </div>
+      </div>
+
+      <div class="dr-section">
+        <div class="dr-sec-title">Permissions</div>
+        <div class="role-perm-note" [class.note-admin]="u.role==='Admin'" [class.note-worker]="u.role==='Worker'">
+          <i class="bi" [class.bi-shield-fill-check]="u.role==='Admin'" [class.bi-person-workspace]="u.role==='Worker'"></i>
+          <div>
+            <div class="rpn-title">{{ u.role }} permissions apply</div>
+            <div class="rpn-sub">Configure in <strong>Settings → Permissions</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dr-footer">
+      <button class="btn-cancel" (click)="closeDetail()">Close</button>
+      <button class="btn-save" (click)="closeDetail(); openEdit(u)">
+        <i class="bi bi-pencil"></i> Edit User
+      </button>
+    </div>
+  </ng-container>
+</div>
+
+
+<!-- ══ ADD / EDIT MODAL ══════════════════════════════════ -->
+<div class="modal-mask" *ngIf="showModal()" (click)="closeModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-hdr">
+      <h3>{{ editingUser() ? 'Edit User' : 'Add New User' }}</h3>
+      <button class="modal-x" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="mtab" [class.mtab-active]="activeTab()==='basic'" (click)="activeTab.set('basic')">
+        <i class="bi bi-person-fill"></i> Basic Info
+      </button>
+      <button class="mtab" [class.mtab-active]="activeTab()==='hr'" (click)="activeTab.set('hr')">
+        <i class="bi bi-briefcase-fill"></i> HR &amp; Salary
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <ng-container *ngIf="activeTab()==='basic'">
+        <div class="form-grid">
+          <div class="fg">
+            <label>Full Name <span class="req">*</span></label>
+            <input class="fi" type="text" placeholder="Staff member's name"
+              [ngModel]="formName()" (ngModelChange)="formName.set($event)" />
+          </div>
+          <div class="fg">
+            <label>Phone <span class="req">*</span></label>
+            <input class="fi" type="tel" placeholder="10-digit mobile"
+              [ngModel]="formPhone()" (ngModelChange)="formPhone.set($event)" />
+          </div>
+          <div class="fg fg-full">
+            <label>Email (optional)</label>
+            <input class="fi" type="email" placeholder="email@example.com"
+              [ngModel]="formEmail()" (ngModelChange)="formEmail.set($event)" />
+          </div>
+          <div class="fg fg-full">
+            <label>Role <span class="req">*</span></label>
+            <div class="role-selector">
+              <button class="role-opt" [class.role-selected]="formRole()==='Admin'" (click)="formRole.set('Admin')">
+                <i class="bi bi-shield-fill-check"></i>
+                <div>
+                  <span>Admin</span>
+                  <small>Full access · configured in Settings</small>
+                </div>
+              </button>
+              <button class="role-opt" [class.role-selected]="formRole()==='Worker'" (click)="formRole.set('Worker')">
+                <i class="bi bi-person-workspace"></i>
+                <div>
+                  <span>Worker</span>
+                  <small>Limited access · configured in Settings</small>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div class="fg fg-full" *ngIf="!editingUser()">
+            <label>Password <span class="req">*</span></label>
+            <div class="pwd-wrap">
+              <input class="fi" [type]="showPassword() ? 'text' : 'password'" placeholder="Min 6 characters"
+                [ngModel]="formPassword()" (ngModelChange)="formPassword.set($event)" />
+              <button class="pwd-toggle" type="button" (click)="showPassword.update(v => !v)">
+                <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="activeTab()==='hr'">
+        <div class="form-grid">
+          <div class="fg">
+            <label>Designation</label>
+            <input class="fi" type="text" placeholder="e.g. Delivery Driver"
+              [ngModel]="formDesignation()" (ngModelChange)="formDesignation.set($event)" />
+          </div>
+          <div class="fg">
+            <label>Date of Joining</label>
+            <input class="fi" type="date"
+              [ngModel]="formDOJ()" (ngModelChange)="formDOJ.set($event)" />
+          </div>
+          <div class="fg">
+            <label>Monthly Salary ({{ currency() }})</label>
+            <input class="fi" type="number" placeholder="e.g. 8000"
+              [ngModel]="formMonthlySalary()" (ngModelChange)="formMonthlySalary.set(+$event || null)" />
+          </div>
+          <div class="fg">
+            <label>Emergency Contact</label>
+            <input class="fi" type="tel" placeholder="Emergency phone number"
+              [ngModel]="formEmergencyContact()" (ngModelChange)="formEmergencyContact.set($event)" />
+          </div>
+          <div class="fg fg-full">
+            <label>Address</label>
+            <textarea class="fi fi-area" rows="2" placeholder="Residential address"
+              [ngModel]="formAddress()" (ngModelChange)="formAddress.set($event)"></textarea>
+          </div>
+          <div class="fg fg-full">
+            <label>Notes</label>
+            <textarea class="fi fi-area" rows="2" placeholder="Any notes about this staff member"
+              [ngModel]="formNotes()" (ngModelChange)="formNotes.set($event)"></textarea>
+          </div>
+        </div>
+        <div class="salary-note" *ngIf="formMonthlySalary() && formMonthlySalary()! > 0">
+          <i class="bi bi-info-circle-fill"></i>
+          Annual CTC: <strong>{{ currency() }}{{ ((formMonthlySalary() ?? 0) * 12).toLocaleString('en-IN') }}</strong>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+      <button class="btn-tab-nav" *ngIf="activeTab()==='basic'" (click)="activeTab.set('hr')">
+        Next <i class="bi bi-arrow-right"></i>
+      </button>
+      <button class="btn-save" (click)="save()" [disabled]="isSaving()">
+        <span class="spin-sm" *ngIf="isSaving()"></span>
+        <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+        {{ editingUser() ? 'Update' : 'Add User' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ RESET PASSWORD MODAL ══════════════════════════════ -->
+<div class="modal-mask" *ngIf="showResetModal()" (click)="closeReset()">
+  <div class="modal-box modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal-hdr">
+      <h3>Reset Password</h3>
+      <button class="modal-x" (click)="closeReset()"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="reset-notice">
+        <i class="bi bi-shield-lock-fill"></i>
+        The user will need to log in with the new password.
+      </div>
+      <div class="fg" style="margin-top:12px">
+        <label>New Password <span class="req">*</span></label>
+        <div class="pwd-wrap">
+          <input class="fi" [type]="showNewPwd() ? 'text' : 'password'" placeholder="Min 6 characters"
+            [ngModel]="newPassword()" (ngModelChange)="newPassword.set($event)" />
+          <button class="pwd-toggle" type="button" (click)="showNewPwd.update(v => !v)">
+            <i class="bi" [class.bi-eye]="!showNewPwd()" [class.bi-eye-slash]="showNewPwd()"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeReset()">Cancel</button>
+      <button class="btn-save" (click)="confirmReset()">
+        <i class="bi bi-check-lg"></i> Reset Password
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ DELETE CONFIRM ════════════════════════════════════ -->
+<div class="modal-mask" *ngIf="deleteTarget()" (click)="deleteTarget.set(null)">
+  <div class="confirm-box" (click)="$event.stopPropagation()">
+    <div class="confirm-icon"><i class="bi bi-person-x-fill"></i></div>
+    <h3>Delete User?</h3>
+    <p>This will permanently remove <strong>{{ deleteTarget()!.name }}</strong> from the system.</p>
+    <div class="confirm-btns">
+      <button class="btn-cancel" (click)="deleteTarget.set(null)">Cancel</button>
+      <button class="btn-delete" (click)="doDelete()">
+        <i class="bi bi-trash3"></i> Delete
+      </button>
+    </div>
+  </div>
+</div>

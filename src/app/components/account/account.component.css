@@ -1,0 +1,467 @@
+/* account.component.css
+   Matches the design tokens already used in users.component.css
+   ──────────────────────────────────────────────────────────── */
+
+:host {
+  --primary:#0057FF; --pl:#e8f0ff;
+  --success:#00C17B; --sl:#e5faf2;
+  --warning:#F59E0B; --wl:#fef3c7;
+  --danger:#EF4444;  --dl:#fee2e2;
+  --purple:#8B5CF6;  --purpl:#ede9fe;
+  --teal:#0891B2;    --tl:#e0f2fe;
+  --text:#111827; --ts:#6B7280; --tm:#9CA3AF;
+  --border:#E5E7EB; --surface:#F9FAFB;
+  --sh:0 1px 3px rgba(0,0,0,.08); --shm:0 8px 24px rgba(0,0,0,.1);
+  --bottom-nav-height: 64px;
+  font-family:'DM Sans',sans-serif;
+}
+
+/* ── PAGE WRAPPER ───────────────────────────────────────── */
+.account-page {
+  max-width: 960px; /* was 800px — gives more room on desktop */
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── HEADER ─────────────────────────────────────────────── */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+.page-title    { font-size:22px; font-weight:700; color:var(--text); margin:0 0 3px; }
+.page-subtitle { font-size:13px; color:var(--ts); margin:0; }
+
+.readonly-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ts);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.readonly-badge i { font-size: 11px; color: var(--tm); }
+
+/* ── PROFILE HERO ───────────────────────────────────────── */
+.profile-hero {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--sh);
+  padding: 22px 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.hero-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.hero-info     { flex: 1; min-width: 0; }
+.hero-name     { font-size: 18px; font-weight: 700; color: var(--text); margin: 0 0 3px; }
+.hero-phone    { font-size: 13px; color: var(--ts); margin: 0 0 1px; }
+.hero-email    { font-size: 12px; color: var(--tm); margin: 0; }
+.hero-right    { flex-shrink: 0; }
+
+/* ── ROLE CHIP ──────────────────────────────────────────── */
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+.role-chip-sm  { font-size: 11px; padding: 4px 9px; }
+.chip-admin    { background: var(--purpl); color: var(--purple); }
+.chip-worker   { background: var(--wl);    color: #92400E; }
+
+/* ── SECTIONS GRID ──────────────────────────────────────── */
+.sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* ── DETAIL CARD ─────────────────────────────────────────── */
+.detail-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--sh);
+  padding: 18px 20px;
+}
+.detail-card-full {
+  grid-column: 1 / -1;
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tm);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.card-title i { font-size: 13px; color: var(--primary); }
+
+/* ── DETAIL ROWS ─────────────────────────────────────────── */
+.detail-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dr-label {
+  font-size: 13px;
+  color: var(--ts);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.dr-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  word-break: break-all;
+}
+.dr-empty { color: var(--tm); font-weight: 400; }
+.mono { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--ts); }
+
+/* ── SUBSCRIPTION ───────────────────────────────────────── */
+/* .sub-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+} */
+
+/* Make subscription card content row-based on desktop */
+.sub-content {
+  display: flex;
+  flex-direction: row;          /* was column */
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sub-plan-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.sub-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 10px;
+}
+.badge-free       { background: var(--surface); color: var(--ts); border: 1px solid var(--border); }
+.badge-pro        { background: var(--purpl);   color: var(--purple); }
+.badge-enterprise { background: var(--wl);      color: #92400E; }
+.sub-plan-badge i { font-size: 13px; }
+
+.sub-expiry {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ts);
+}
+.sub-expiry i { font-size: 12px; color: var(--tm); }
+
+.sub-note {
+  flex: 1;
+  min-width: 260px;
+  /* keep existing styles */
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--pl);
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #1e40af;
+}
+.sub-note i { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+
+/* ── SECURITY NOTE ──────────────────────────────────────── */
+.security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--ts);
+}
+.security-note > i {
+  font-size: 18px;
+  color: var(--tm);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.sn-title { font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.sn-sub   { font-size: 12px; color: var(--ts); line-height: 1.5; }
+
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE — max-width: 768px
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  .account-page {
+    max-width: 100%;
+    padding-bottom: calc(var(--bottom-nav-height) + 16px);
+    gap: 14px;
+  }
+
+  /* Header */
+  .page-header { align-items: center; }
+  .page-title  { font-size: 18px; }
+  .page-subtitle { display: none; }
+
+  /* Hero */
+  .profile-hero {
+    padding: 16px 14px;
+    gap: 13px;
+  }
+  .hero-avatar { width: 52px; height: 52px; font-size: 18px; border-radius: 13px; }
+  .hero-name   { font-size: 16px; }
+
+  /* Grid → single column */
+  .sections-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-card-full { grid-column: 1; }
+
+  /* Rows stack label above value */
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+  .dr-value { text-align: left; }
+
+  .sub-content {
+    flex-direction: column;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   ACCOUNT PAGE — MOBILE IMPROVEMENTS
+   Paste at the END of account.component.css
+   Desktop/laptop styles are completely untouched.
+══════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* ─────────────────────────────────────────────────────
+     1. PAGE WRAPPER
+  ───────────────────────────────────────────────────── */
+  .account-page {
+    max-width: 100% !important;
+    gap: 10px !important;
+    padding-bottom: calc(var(--bottom-nav-height) + 16px) !important;
+  }
+
+  /* ─────────────────────────────────────────────────────
+     2. HEADER — single line
+  ───────────────────────────────────────────────────── */
+  .page-header {
+    align-items: center !important;
+    margin-bottom: 0 !important;
+  }
+  .page-title    { font-size: 18px !important; }
+  .page-subtitle { font-size: 12px !important; }
+  .readonly-badge {
+    font-size: 11px !important;
+    padding: 5px 10px !important;
+    border-radius: 7px !important;
+    gap: 5px !important;
+  }
+
+  /* ─────────────────────────────────────────────────────
+     3. PROFILE HERO — compact horizontal strip
+  ───────────────────────────────────────────────────── */
+  .profile-hero {
+    padding: 12px 14px !important;
+    gap: 11px !important;
+    border-radius: 12px !important;
+  }
+  .hero-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 16px !important;
+    border-radius: 11px !important;
+    flex-shrink: 0 !important;
+  }
+  .hero-name  { font-size: 15px !important; margin-bottom: 1px !important; }
+  .hero-phone { font-size: 12px !important; margin-bottom: 1px !important; }
+  .hero-email { font-size: 11px !important; }
+  .role-chip  {
+    font-size: 11px !important;
+    padding: 4px 10px !important;
+    gap: 4px !important;
+  }
+  .role-chip i { font-size: 11px !important; }
+
+  /* ─────────────────────────────────────────────────────
+     4. SECTIONS GRID — single column
+  ───────────────────────────────────────────────────── */
+  .sections-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .detail-card-full { grid-column: 1 !important; }
+
+  /* ─────────────────────────────────────────────────────
+     5. DETAIL CARDS — compact
+  ───────────────────────────────────────────────────── */
+  .detail-card {
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+  }
+  .card-title {
+    font-size: 10px !important;
+    margin-bottom: 10px !important;
+    padding-bottom: 8px !important;
+    gap: 5px !important;
+  }
+  .card-title i { font-size: 12px !important; }
+
+  /* ─────────────────────────────────────────────────────
+     6. DETAIL ROWS — KEY FIX
+        Keep label + value on SAME LINE (inline)
+        instead of stacking — saves ~50% vertical space
+  ───────────────────────────────────────────────────── */
+  .detail-rows { gap: 0 !important; }
+
+  .detail-row {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding: 8px 0 !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .detail-row:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+  .detail-row:first-child { padding-top: 0 !important; }
+
+  .dr-label {
+    font-size: 12px !important;
+    color: var(--ts) !important;
+    font-weight: 500 !important;
+    flex-shrink: 0 !important;
+    min-width: 90px !important;
+  }
+  .dr-value {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-align: right !important;
+    word-break: break-word !important;
+    flex: 1 !important;
+  }
+  .dr-empty { font-size: 12px !important; }
+  .mono     { font-size: 11px !important; }
+
+  .role-chip-sm {
+    font-size: 10px !important;
+    padding: 3px 8px !important;
+    gap: 3px !important;
+  }
+
+  /* ─────────────────────────────────────────────────────
+     7. SUBSCRIPTION CARD — compact
+  ───────────────────────────────────────────────────── */
+  .sub-content {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  .sub-plan-wrap {
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+  }
+  .sub-plan-badge {
+    font-size: 12px !important;
+    padding: 5px 11px !important;
+    border-radius: 8px !important;
+    gap: 5px !important;
+  }
+  .sub-plan-badge i { font-size: 12px !important; }
+  .sub-expiry {
+    font-size: 11px !important;
+    gap: 4px !important;
+  }
+  .sub-note {
+    padding: 9px 12px !important;
+    font-size: 11px !important;
+    border-radius: 8px !important;
+    gap: 7px !important;
+    min-width: unset !important;
+  }
+  .sub-note i { font-size: 12px !important; }
+
+  /* ─────────────────────────────────────────────────────
+     8. SECURITY NOTE — compact
+  ───────────────────────────────────────────────────── */
+  .security-note {
+    padding: 11px 13px !important;
+    gap: 10px !important;
+    border-radius: 10px !important;
+  }
+  .security-note > i { font-size: 15px !important; }
+  .sn-title { font-size: 13px !important; margin-bottom: 2px !important; }
+  .sn-sub   { font-size: 11px !important; }
+
+} /* end @media 768px */
+
+
+/* ══════════════════════════════════════════════════════════
+   VERY SMALL SCREENS ≤ 380px
+══════════════════════════════════════════════════════════ */
+@media (max-width: 380px) {
+  .hero-avatar { width: 38px !important; height: 38px !important; font-size: 14px !important; }
+  .hero-name   { font-size: 14px !important; }
+  .hero-phone  { font-size: 11px !important; }
+  .hero-email  { font-size: 10px !important; }
+  .dr-label    { font-size: 11px !important; min-width: 80px !important; }
+  .dr-value    { font-size: 11px !important; }
+  .detail-card { padding: 10px 12px !important; }
+  .card-title  { font-size: 9px !important; }
+}

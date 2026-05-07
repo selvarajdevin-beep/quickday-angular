@@ -1,0 +1,105 @@
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="brand-block">
+      <div class="brand-icon">
+        <!-- <i class="bi bi-droplet-fill"></i> -->
+           <img 
+              src="logo/quickday-logo.png" 
+              alt="QuickDay" 
+              class="logo-img"
+            />
+      </div>
+      <h1 class="brand-name">QuickDay</h1>
+      <p class="brand-tagline">A fast and simple way to manage your daily tasks and stay on track.</p>
+    </div>
+
+    <div class="feature-list">
+      <div class="feature-item">
+        <div class="fi-icon"><i class="bi bi-receipt-cutoff"></i></div>
+        <div>
+          <div class="fi-title">Fast Billing</div>
+          <div class="fi-desc">Create orders in under 10 seconds</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="fi-icon"><i class="bi bi-people-fill"></i></div>
+        <div>
+          <div class="fi-title">Credit Tracking</div>
+          <div class="fi-desc">Never lose track of customer dues</div>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="fi-icon"><i class="bi bi-bar-chart-fill"></i></div>
+        <div>
+          <div class="fi-title">Smart Reports</div>
+          <div class="fi-desc">Daily, monthly & profit insights</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="auth-decor">
+      <div class="decor-ring ring-1"></div>
+      <div class="decor-ring ring-2"></div>
+      <div class="decor-ring ring-3"></div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+
+      <div class="form-header">
+        <h2>Welcome back</h2>
+        <p>Sign in to your QuickDay account</p>
+      </div>
+
+      <!-- Demo credentials helper -->
+      <!-- <div class="demo-bar">
+        <span>Try demo:</span>
+        <button class="demo-btn" (click)="fillDemo('admin')">Admin</button>
+        <button class="demo-btn" (click)="fillDemo('worker')">Worker</button>
+      </div> -->
+
+      <!-- Error -->
+      <div class="error-msg" *ngIf="errorMsg()">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        {{ errorMsg() }}
+      </div>
+
+      <div class="form-body">
+        <div class="fg">
+          <label>Mobile Number</label>
+          <div class="input-wrap">
+            <span class="input-prefix"><i class="bi bi-telephone-fill"></i></span>
+            <input type="tel" placeholder="Enter your mobile number"
+              [ngModel]="phone()" (ngModelChange)="phone.set($event)"
+              (keyup.enter)="login()" maxlength="10" />
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Password</label>
+          <div class="input-wrap">
+            <span class="input-prefix"><i class="bi bi-lock-fill"></i></span>
+            <input [type]="showPwd() ? 'text' : 'password'" placeholder="Enter your password"
+              [ngModel]="password()" (ngModelChange)="password.set($event)"
+              (keyup.enter)="login()" />
+            <button class="pwd-eye" (click)="showPwd.update(v => !v)">
+              <i class="bi" [class.bi-eye]="!showPwd()" [class.bi-eye-slash]="showPwd()"></i>
+            </button>
+          </div>
+        </div>
+
+        <button class="btn-login" (click)="login()" [disabled]="isLoading()">
+          <span class="spin-sm" *ngIf="isLoading()"></span>
+          <span *ngIf="!isLoading()">Sign In <i class="bi bi-arrow-right"></i></span>
+          <span *ngIf="isLoading()">Signing in…</span>
+        </button>
+      </div>
+
+      <!-- <div class="form-footer">
+        Don't have an account?
+        <a routerLink="/register">Register your business</a>
+      </div> -->
+    </div>
+  </div>
+</div>

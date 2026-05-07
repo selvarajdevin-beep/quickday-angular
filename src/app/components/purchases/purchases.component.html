@@ -1,0 +1,455 @@
+<div class="purchases-page">
+
+  <!-- Toast -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast" [class.t-ok]="toastType()==='success'" [class.t-err]="toastType()==='error'">
+      <i class="bi" [class.bi-check-circle-fill]="toastType()==='success'" [class.bi-x-circle-fill]="toastType()==='error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Purchases</h2>
+      <p class="page-subtitle">Record stock purchases from suppliers</p>
+    </div>
+    <button class="btn-add" (click)="openForm()">
+      <i class="bi bi-plus-lg"></i>
+      <span class="btn-add-label">New Purchase</span>
+    </button>
+  </div>
+
+  <!-- Summary strip -->
+  <div class="summary-strip">
+    <div class="sum-card">
+      <div class="sum-icon s-blue"><i class="bi bi-cart3"></i></div>
+      <div>
+        <div class="sum-lbl">This Month</div>
+        <div class="sum-val">₹{{ summary().totalThisMonth | number }}</div>
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-icon s-green"><i class="bi bi-bag-check"></i></div>
+      <div>
+        <div class="sum-lbl">Orders</div>
+        <div class="sum-val">{{ summary().purchaseCount }}</div>
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-icon s-red"><i class="bi bi-hourglass-split"></i></div>
+      <div>
+        <div class="sum-lbl">Credit Pending</div>
+        <div class="sum-val">₹{{ summary().creditPending | number }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters row 1: search + status + supplier -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Search supplier or order ID…"
+        [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event); onFilterChange()" />
+    </div>
+
+    <div class="seg-ctrl">
+      <button [class.seg-on]="filterStatus()==='all'"    (click)="filterStatus.set('all'); onFilterChange()">All</button>
+      <button [class.seg-on]="filterStatus()==='Paid'"   (click)="filterStatus.set('Paid'); onFilterChange()">Paid</button>
+      <button [class.seg-on]="filterStatus()==='Credit'" (click)="filterStatus.set('Credit'); onFilterChange()">Credit</button>
+    </div>
+
+    <select class="sup-filter" [ngModel]="filterSupplier()"
+      (ngModelChange)="filterSupplier.set($event ? +$event : null); onFilterChange()">
+      <option [value]="null">All Suppliers</option>
+      <option *ngFor="let s of suppliers()" [value]="s.id">{{ s.name }}</option>
+    </select>
+  </div>
+
+  <!-- Date filter row -->
+  <div class="filters-bar filters-bar-date">
+    <div class="seg-ctrl date-seg">
+      <button [class.seg-on]="dateFilter()==='all'"    (click)="onDateFilterChange('all')">All</button>
+      <button [class.seg-on]="dateFilter()==='today'"  (click)="onDateFilterChange('today')">Today</button>
+      <button [class.seg-on]="dateFilter()==='week'"   (click)="onDateFilterChange('week')">7 Days</button>
+      <button [class.seg-on]="dateFilter()==='custom'" (click)="onDateFilterChange('custom')">Custom</button>
+    </div>
+
+    <div class="date-range-wrap" *ngIf="dateFilter()==='custom'">
+      <i class="bi bi-calendar3 dr-icon"></i>
+      <input type="date" class="fi-date"
+        [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event); onFilterChange()" />
+      <span class="date-sep">→</span>
+      <input type="date" class="fi-date"
+        [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event); onFilterChange()" />
+    </div>
+
+    <span class="result-count" *ngIf="dateFilter()!=='all' || filterStatus()!=='all' || filterSupplier() || searchQuery()">
+      <!-- {{ totalItems() }} result{{ totalItems() !== 1 ? 's' : '' }} -->
+      {{ totalCount() }} result{{ totalCount() !== 1 ? 's' : '' }}
+    </span>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-row" *ngIf="isLoading()">
+    <div class="spin"></div><span>Loading purchases…</span>
+  </div>
+
+  <ng-container *ngIf="!isLoading()">
+
+    <!-- ══ DESKTOP TABLE (hidden on mobile via *ngIf) ══ -->
+    <div class="table-card" *ngIf="!isMobile()">
+      <table class="pur-table">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Supplier</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Paid</th>
+            <th>Balance</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of pagedPurchases(); trackBy: trackByPurchaseId"
+              (click)="viewPurchase.set(p)" class="table-row"
+              [class.row-credit]="p.paymentStatus==='Credit'">
+            <td><span class="order-id">#{{ p.id }}</span></td>
+            <td>
+              <div class="sup-cell">
+                <div class="sc-av" [style.background]="avatarColor(p.supplierId)">{{ initials(p.supplierName) }}</div>
+                <span class="sc-name">{{ p.supplierName }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="items-cell">
+                <span *ngFor="let item of p.items" class="item-chip">
+                  {{ item.productName }} ×{{ item.quantity }}
+                </span>
+              </div>
+            </td>
+            <td><span class="amount-txt">₹{{ p.grandTotal | number }}</span></td>
+            <td><span class="paid-txt">₹{{ p.paidAmount | number }}</span></td>
+            <td>
+              <span class="bal-txt" [class.bal-zero]="p.balance===0" [class.bal-pos]="p.balance>0">
+                {{ p.balance === 0 ? '—' : '₹' + (p.balance | number) }}
+              </span>
+            </td>
+            <td>
+              <span class="status-badge" [class.st-paid]="p.paymentStatus==='Paid'" [class.st-credit]="p.paymentStatus==='Credit'">
+                {{ p.paymentStatus }}
+              </span>
+            </td>
+            <td><span class="time-txt">{{ timeAgo(p.createdAt) }}</span></td>
+            <td (click)="$event.stopPropagation()">
+              <div class="tbl-acts">
+                <button class="btn-tbl-edit" (click)="startEdit(p, $event)" title="Edit purchase">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+                <button class="btn-mark-paid" *ngIf="p.paymentStatus==='Credit'" (click)="markPaid(p, $event)" title="Mark as Paid">
+                  <i class="bi bi-check-circle"></i> Mark Paid
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="empty-row" *ngIf="pagedPurchases().length === 0">
+        <i class="bi bi-cart3"></i><p>No purchases found</p>
+      </div>
+    </div>
+
+    <!-- ══ MOBILE CARD LIST (hidden on desktop via *ngIf) ══ -->
+    <div class="mobile-list" *ngIf="isMobile()">
+
+      <div class="pur-card"
+           *ngFor="let p of pagedPurchases(); trackBy: trackByPurchaseId"
+           [class.card-credit]="p.paymentStatus==='Credit'"
+           (click)="viewPurchase.set(p)">
+
+        <!-- Card top row: order ID + status badge -->
+        <div class="card-top">
+          <span class="order-id">#{{ p.id }}</span>
+          <span class="status-badge" [class.st-paid]="p.paymentStatus==='Paid'" [class.st-credit]="p.paymentStatus==='Credit'">
+            {{ p.paymentStatus }}
+          </span>
+        </div>
+
+        <!-- Supplier row -->
+        <div class="card-supplier">
+          <div class="sc-av" [style.background]="avatarColor(p.supplierId)">{{ initials(p.supplierName) }}</div>
+          <div class="card-sup-info">
+            <span class="sc-name">{{ p.supplierName }}</span>
+            <span class="card-time">{{ timeAgo(p.createdAt) }}</span>
+          </div>
+        </div>
+
+        <!-- Items chips -->
+        <div class="card-items">
+          <span class="item-chip" *ngFor="let item of p.items">
+            {{ item.productName }} ×{{ item.quantity }}
+          </span>
+        </div>
+
+        <!-- Amounts grid -->
+        <div class="card-amounts">
+          <div class="ca-block">
+            <span class="ca-lbl">Total</span>
+            <span class="ca-val amount-txt">₹{{ p.grandTotal | number }}</span>
+          </div>
+          <div class="ca-divider"></div>
+          <div class="ca-block">
+            <span class="ca-lbl">Paid</span>
+            <span class="ca-val paid-txt">₹{{ p.paidAmount | number }}</span>
+          </div>
+          <div class="ca-divider"></div>
+          <div class="ca-block">
+            <span class="ca-lbl">Balance</span>
+            <span class="ca-val bal-txt" [class.bal-zero]="p.balance===0" [class.bal-pos]="p.balance>0">
+              {{ p.balance === 0 ? '—' : '₹' + (p.balance | number) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Card actions -->
+        <div class="card-actions" (click)="$event.stopPropagation()">
+          <button class="card-btn-edit" (click)="startEdit(p, $event)">
+            <i class="bi bi-pencil-fill"></i> Edit
+          </button>
+          <button class="card-btn-paid" *ngIf="p.paymentStatus==='Credit'" (click)="markPaid(p, $event)">
+            <i class="bi bi-check-circle-fill"></i> Mark Paid
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Empty state -->
+      <div class="empty-row" *ngIf="pagedPurchases().length === 0">
+        <i class="bi bi-cart3"></i>
+        <p>No purchases found</p>
+      </div>
+
+    </div>
+
+    <!-- Pagination (shared, works for both views) -->
+    <div class="pagination-bar" *ngIf="totalPages() > 1">
+      <button class="pg-btn" (click)="goToPage(currentPage()-1)" [disabled]="currentPage()===1">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+      <button class="pg-btn" *ngFor="let p of pagesArr()"
+        [class.pg-active]="p===currentPage()" (click)="goToPage(p)">{{ p }}</button>
+      <button class="pg-btn" (click)="goToPage(currentPage()+1)" [disabled]="currentPage()===totalPages()">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+      <!-- <span class="pg-info">{{ totalItems() }} purchases · Page {{ currentPage() }} of {{ totalPages() }}</span> -->
+      <span class="pg-info">
+        {{ totalCount() }} purchases · Page {{ currentPage() }} of {{ totalPages() }}
+    </span>
+    </div>
+
+  </ng-container>
+</div>
+
+<!-- ── NEW / EDIT PURCHASE FORM PANEL ───────────────── -->
+<div class="form-backdrop" *ngIf="showForm()" (click)="closeForm()"></div>
+<div class="form-panel" [class.panel-open]="showForm()">
+  <div class="panel-hdr">
+    <div>
+      <h3>{{ panelTitle() }}</h3>
+      <p>{{ editingPurchase() ? 'Update purchase details below' : 'Record stock from a supplier' }}</p>
+    </div>
+    <button class="panel-close" (click)="closeForm()"><i class="bi bi-x-lg"></i></button>
+  </div>
+
+  <div class="panel-body">
+
+    <!-- Step 1: Supplier -->
+    <div class="form-section">
+      <div class="section-lbl"><span class="step-n">1</span> Supplier</div>
+
+      <div class="sel-sup" *ngIf="formSupplier() as fs">
+        <div class="ss-av" [style.background]="avatarColor(fs.id)">{{ initials(fs.name) }}</div>
+        <div class="ss-info">
+          <span class="ss-name">{{ fs.name }}</span>
+          <span class="ss-meta">{{ fs.phone }}</span>
+        </div>
+        <button class="ss-clear" (click)="clearSupplier()"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <div class="sup-search-wrap" *ngIf="!formSupplier()">
+        <div class="sup-input">
+          <i class="bi bi-search"></i>
+          <input type="text" placeholder="Search supplier…"
+            [ngModel]="supplierSearch()"
+            (ngModelChange)="supplierSearch.set($event); showSupDrop.set(true)"
+            (focus)="showSupDrop.set(true)" (blur)="hideSupDrop()" />
+        </div>
+        <div class="sup-dropdown" *ngIf="showSupDrop() && filteredSuppliers().length > 0">
+          <div class="sup-dd-item" *ngFor="let s of filteredSuppliers()" (mousedown)="selectSupplier(s)">
+            <div class="sdi-av" [style.background]="avatarColor(s.id)">{{ initials(s.name) }}</div>
+            <div>
+              <span class="sdi-name">{{ s.name }}</span>
+              <span class="sdi-phone">{{ s.phone }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Items -->
+    <div class="form-section">
+      <div class="section-lbl"><span class="step-n">2</span> Items</div>
+      <div class="items-list">
+        <div class="item-row" *ngFor="let row of formRows(); let i = index">
+          <select class="fi fi-sel" [ngModel]="row.productId" (ngModelChange)="onProductChange(i, $event)">
+            <option *ngFor="let p of products()" [value]="p.id">{{ p.name }}</option>
+          </select>
+          <div class="item-row-controls">
+            <div class="qty-ctrl">
+              <button class="qty-b" (click)="adjQty(i,-1)">−</button>
+              <input type="number" class="fi fi-qty" [ngModel]="row.quantity"
+                (ngModelChange)="onQtyChange(i,$event)" min="1" />
+              <button class="qty-b" (click)="adjQty(i,1)">+</button>
+            </div>
+            <div class="price-wrap">
+              <span class="p-sym">₹</span>
+              <input type="number" class="fp" [ngModel]="row.pricePerUnit"
+                (ngModelChange)="onPriceChange(i,$event)" />
+            </div>
+            <span class="row-total">₹{{ row.total | number }}</span>
+            <button class="rm-row" (click)="removeRow(i)" [disabled]="formRows().length===1">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <button class="btn-add-row" (click)="addRow()">
+        <i class="bi bi-plus-circle"></i> Add item
+      </button>
+      <div class="total-bar">
+        <span>Grand Total</span>
+        <span class="g-total">₹{{ formGrandTotal() | number }}</span>
+      </div>
+    </div>
+
+    <!-- Step 3: Payment -->
+    <div class="form-section">
+      <div class="section-lbl"><span class="step-n">3</span> Payment</div>
+
+      <div class="pay-btns">
+        <button class="pay-btn" [class.pb-paid]="formPayStatus()==='Paid'"
+          (click)="onPayStatusChange('Paid')">
+          <i class="bi bi-cash"></i> Paid
+        </button>
+        <button class="pay-btn" [class.pb-credit]="formPayStatus()==='Credit'"
+          (click)="onPayStatusChange('Credit')">
+          <i class="bi bi-clock-history"></i> Credit
+        </button>
+      </div>
+
+      <div class="credit-notice" *ngIf="formPayStatus()==='Credit'">
+        <i class="bi bi-info-circle-fill"></i>
+        ₹{{ formGrandTotal() | number }} will be added to supplier due
+      </div>
+
+      <div class="paid-input" *ngIf="formPayStatus()==='Paid'">
+        <label class="fi-label">Amount Paid (₹)</label>
+        <div class="paid-row">
+          <div class="qty-row" style="flex:1">
+            <button class="qty-b" (click)="formPaid.set(Math.max(0, formPaid()-100))">−</button>
+            <input type="number" class="fi"
+              style="text-align:center;font-family:'Space Mono',monospace;font-size:17px;font-weight:700"
+              [ngModel]="formPaid()" (ngModelChange)="formPaid.set($event)" />
+            <button class="qty-b" (click)="formPaid.set(formPaid()+100)">+</button>
+          </div>
+          <button class="btn-full" (click)="setFullAmount()">Full</button>
+        </div>
+        <div class="bal-indicator" *ngIf="formBalance() > 0">
+          <i class="bi bi-exclamation-circle"></i>
+          Remaining balance: ₹{{ formBalance() | number }}
+        </div>
+        <div class="bal-indicator bal-ok" *ngIf="formBalance()===0 && formGrandTotal()>0">
+          <i class="bi bi-check-circle"></i> Fully paid
+        </div>
+      </div>
+
+      <div class="fg">
+        <label class="fi-label">Notes (optional)</label>
+        <input type="text" class="fi" placeholder="e.g. Monthly stock replenishment"
+          [ngModel]="formNotes()" (ngModelChange)="formNotes.set($event)" />
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-ftr">
+    <button class="btn-cancel" (click)="closeForm()">Cancel</button>
+    <button class="btn-save" (click)="submitPurchase()" [disabled]="isSaving()">
+      <span class="spin-sm" *ngIf="isSaving()"></span>
+      <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+      {{ editingPurchase() ? 'Update Purchase' : 'Save Purchase' }}
+    </button>
+  </div>
+</div>
+
+<!-- ── DETAIL MODAL ────────────────────────────────── -->
+<div class="modal-mask" *ngIf="viewPurchase()" (click)="viewPurchase.set(null)">
+  <div class="detail-modal" (click)="$event.stopPropagation()">
+    <div class="dm-hdr">
+      <div>
+        <h3>Purchase #{{ viewPurchase()!.id }}</h3>
+        <p class="dm-sub">{{ viewPurchase()!.supplierName }}</p>
+      </div>
+      <button class="modal-x" (click)="viewPurchase.set(null)"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="dm-body">
+      <table class="detail-table">
+        <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let item of viewPurchase()!.items">
+            <td>{{ item.productName }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>₹{{ item.pricePerUnit }}</td>
+            <td>₹{{ item.total | number }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="dm-summary">
+        <div class="dm-row"><span>Grand Total</span><strong>₹{{ viewPurchase()!.grandTotal | number }}</strong></div>
+        <div class="dm-row"><span>Paid</span><span class="dm-paid">₹{{ viewPurchase()!.paidAmount | number }}</span></div>
+        <div class="dm-row" *ngIf="viewPurchase()!.balance > 0">
+          <span>Balance Due</span><span class="dm-bal">₹{{ viewPurchase()!.balance | number }}</span>
+        </div>
+        <div class="dm-row">
+          <span>Status</span>
+          <span class="status-badge"
+            [class.st-paid]="viewPurchase()!.paymentStatus==='Paid'"
+            [class.st-credit]="viewPurchase()!.paymentStatus==='Credit'">
+            {{ viewPurchase()!.paymentStatus }}
+          </span>
+        </div>
+        <div class="dm-row" *ngIf="viewPurchase()!.notes">
+          <span>Notes</span><span class="dm-notes">{{ viewPurchase()!.notes }}</span>
+        </div>
+        <div class="dm-row">
+          <span>Date</span>
+          <span class="dm-date">{{ viewPurchase()!.createdAt | date:'dd MMM yyyy, h:mm a' }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="dm-ftr">
+      <button class="btn-edit-dm" (click)="startEdit(viewPurchase()!, $event); viewPurchase.set(null)">
+        <i class="bi bi-pencil-fill"></i> Edit
+      </button>
+      <button class="btn-mark-paid-lg"
+        *ngIf="viewPurchase()!.paymentStatus==='Credit'"
+        (click)="markPaid(viewPurchase()!, $event); viewPurchase.set(null)">
+        <i class="bi bi-check-circle"></i> Mark as Paid
+      </button>
+      <button class="btn-close-dm" (click)="viewPurchase.set(null)">Close</button>
+    </div>
+  </div>
+</div>

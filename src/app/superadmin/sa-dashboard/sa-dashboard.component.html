@@ -1,0 +1,112 @@
+<!-- sa-dashboard.component.html -->
+<div class="sa-page">
+
+  <div class="sa-page-header">
+    <div>
+      <h2 class="sa-page-title">
+        <i class="bi bi-shield-fill-check sa-title-icon"></i>
+        Super Admin Dashboard
+      </h2>
+      <p class="sa-page-sub">Platform overview — all registered shops</p>
+    </div>
+    <button class="sa-refresh-btn" (click)="load()">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+  </div>
+
+  <div class="sa-loading" *ngIf="isLoading()">
+    <div class="spin"></div><span>Loading…</span>
+  </div>
+
+  <div class="sa-error" *ngIf="error() && !isLoading()">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ error() }}
+  </div>
+
+  <ng-container *ngIf="stats() && !isLoading()">
+
+    <!-- ── KPI Cards ────────────────────────────────────── -->
+    <div class="sa-kpi-grid">
+
+      <div class="sa-kpi sa-kpi-blue">
+        <div class="sa-kpi-icon"><i class="bi bi-shop"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ stats()!.totalShops }}</div>
+          <div class="sa-kpi-lbl">Total Shops</div>
+        </div>
+      </div>
+
+      <div class="sa-kpi sa-kpi-green">
+        <div class="sa-kpi-icon"><i class="bi bi-check-circle-fill"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ stats()!.activeShops }}</div>
+          <div class="sa-kpi-lbl">Active</div>
+        </div>
+      </div>
+
+      <div class="sa-kpi sa-kpi-amber">
+        <div class="sa-kpi-icon"><i class="bi bi-clock-fill"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ stats()!.expiringIn30Days }}</div>
+          <div class="sa-kpi-lbl">Expiring in 30 days</div>
+        </div>
+      </div>
+
+      <div class="sa-kpi sa-kpi-red">
+        <div class="sa-kpi-icon"><i class="bi bi-x-circle-fill"></i></div>
+        <div class="sa-kpi-body">
+          <div class="sa-kpi-val">{{ stats()!.expiredShops }}</div>
+          <div class="sa-kpi-lbl">Expired</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Plan breakdown ───────────────────────────────── -->
+    <div class="sa-plan-card">
+      <div class="sa-plan-title">Plan Distribution</div>
+      <div class="sa-plan-rows">
+
+        <div class="sa-plan-row">
+          <span class="sa-plan-name plan-free">Free</span>
+          <div class="sa-plan-bar-wrap">
+            <div class="sa-plan-bar sa-bar-free"
+              [style.width.%]="planPercent(stats()!.freePlanCount)"></div>
+          </div>
+          <span class="sa-plan-count">{{ stats()!.freePlanCount }}</span>
+          <span class="sa-plan-pct">{{ planPercent(stats()!.freePlanCount) }}%</span>
+        </div>
+
+        <div class="sa-plan-row">
+          <span class="sa-plan-name plan-basic">Basic</span>
+          <div class="sa-plan-bar-wrap">
+            <div class="sa-plan-bar sa-bar-basic"
+              [style.width.%]="planPercent(stats()!.basicPlanCount)"></div>
+          </div>
+          <span class="sa-plan-count">{{ stats()!.basicPlanCount }}</span>
+          <span class="sa-plan-pct">{{ planPercent(stats()!.basicPlanCount) }}%</span>
+        </div>
+
+        <div class="sa-plan-row">
+          <span class="sa-plan-name plan-pro">Pro</span>
+          <div class="sa-plan-bar-wrap">
+            <div class="sa-plan-bar sa-bar-pro"
+              [style.width.%]="planPercent(stats()!.proPlanCount)"></div>
+          </div>
+          <span class="sa-plan-count">{{ stats()!.proPlanCount }}</span>
+          <span class="sa-plan-pct">{{ planPercent(stats()!.proPlanCount) }}%</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Quick link ─────────────────────────────────── -->
+    <div class="sa-quick-link">
+      <a routerLink="/superadmin/shops" class="sa-ql-btn">
+        <i class="bi bi-grid-fill"></i>
+        Manage All Shops
+        <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+
+  </ng-container>
+</div>

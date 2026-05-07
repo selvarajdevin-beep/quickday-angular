@@ -1,0 +1,616 @@
+<!-- sa-billing.component.html -->
+<div class="sa-page">
+
+  <!-- ── Toast ──────────────────────────────────────────────────────────── -->
+  <div class="toast-wrap" *ngIf="toastMsg()">
+    <div class="toast"
+         [class.t-ok]="toastType() === 'success'"
+         [class.t-err]="toastType() === 'error'">
+      <i class="bi"
+         [class.bi-check-circle-fill]="toastType() === 'success'"
+         [class.bi-x-circle-fill]="toastType() === 'error'"></i>
+      {{ toastMsg() }}
+    </div>
+  </div>
+
+  <!-- ── Page Header ────────────────────────────────────────────────────── -->
+  <div class="sa-page-header">
+    <div>
+      <h2 class="sa-page-title">
+        <i class="bi bi-credit-card-fill sa-title-icon"></i> Billing & Payments
+      </h2>
+      <p class="sa-page-sub">Manage subscription payments and view history</p>
+    </div>
+    <button class="sa-refresh-btn" (click)="loadHistory(); loadAllShops()">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+  </div>
+
+  <!-- ── Tab Bar ────────────────────────────────────────────────────────── -->
+  <div class="sa-tab-bar">
+    <button *ngFor="let tab of tabs"
+      class="sa-tab-btn"
+      [class.sa-tab-active]="activeTab() === tab.id"
+      (click)="activeTab.set(tab.id)">
+      <i class="bi" [class]="tab.icon"></i>{{ tab.label }}
+    </button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 1 — NEW PAYMENT
+       ════════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab() === 'pay'">
+
+    <div class="sa-loading" *ngIf="shopsLoading()">
+      <div class="spin"></div><span>Loading shops…</span>
+    </div>
+
+    <ng-container *ngIf="!shopsLoading()">
+      <div class="sa-billing-grid">
+
+        <!-- LEFT column ──────────────────────────────────────────────── -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+
+          <!-- Step 1: Select shop -->
+          <div class="sa-billing-panel">
+            <h4><i class="bi bi-shop"></i> Step 1 — Select Shop</h4>
+
+            <div class="sa-search-wrap" style="margin-bottom:12px;">
+              <i class="bi bi-search"></i>
+              <input type="text" placeholder="Search shops…"
+                [ngModel]="shopSearch()"
+                (ngModelChange)="shopSearch.set($event)" />
+            </div>
+
+            <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+              <button *ngFor="let f of shopFilters"
+                class="sa-dur-btn"
+                [class.sa-dur-active]="shopFilterTab() === f.val"
+                (click)="shopFilterTab.set(f.val)">
+                {{ f.label }}
+              </button>
+            </div>
+
+            <div class="sa-shop-selector">
+              <div class="sa-ss-item"
+                *ngFor="let s of filteredShops()"
+                [class.sa-ss-active]="selectedShop()?.businessAccountId === s.businessAccountId"
+                (click)="selectShop(s)">
+                <div class="sa-ss-avatar" [style.background]="avatarColor(s.businessAccountId)">
+                  {{ initials(s.businessName) }}
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div class="sa-ss-name">{{ s.businessName }}</div>
+                  <div class="sa-ss-sub">
+                    <span class="ssc-plan" [class]="planClass(s.subscriptionPlan)"
+                          style="margin-right:6px;">{{ s.subscriptionPlan }}</span>
+                    <span *ngIf="s.daysLeft >= 0" style="color:#6b7280;">{{ s.daysLeft }}d left</span>
+                    <span *ngIf="s.daysLeft < 0"  style="color:#dc2626;">Expired</span>
+                  </div>
+                </div>
+                <i class="bi bi-check-circle-fill sa-ss-check"
+                  *ngIf="selectedShop()?.businessAccountId === s.businessAccountId"></i>
+              </div>
+
+              <div class="sa-empty" *ngIf="filteredShops().length === 0" style="padding:24px;">
+                <i class="bi bi-shop" style="font-size:32px;"></i>
+                <p style="font-size:14px;">No shops match</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Choose plan — DB-driven, only shows configured plans -->
+          <div class="sa-billing-panel" *ngIf="selectedShop()">
+            <h4><i class="bi bi-layers"></i> Step 2 — Choose Plan</h4>
+
+            <div class="sa-expired-alert"
+              *ngIf="selectedShop()!.daysLeft < 0 || !selectedShop()!.isActive">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              <div>
+                <strong>Subscription expired</strong> for {{ selectedShop()!.businessName }}.
+                Select a plan below to renew.
+              </div>
+            </div>
+
+            <div class="sa-plan-cards">
+              <ng-container *ngFor="let p of activePlans()">
+                <div class="sa-pc"
+                  [class.sa-pc-selected]="selectedPlan() === p"
+                  [class.pc-pro]="p === 'Pro'"
+                  (click)="selectedPlan.set(p)">
+                  <span class="sa-pc-badge" *ngIf="p === 'Pro'">Popular</span>
+                  <div class="sa-pc-name">{{ p }}</div>
+                  <div class="sa-pc-price" *ngIf="planMonthlyRates[p] !== undefined">
+                    ₹{{ planMonthlyRates[p] }}<span>/mo</span>
+                  </div>
+                  <ul class="sa-pc-features" *ngIf="(planFeatures[p]?.length ?? 0) > 0">
+                    <li *ngFor="let f of planFeatures[p]">
+                      <i class="bi bi-check2"></i>{{ f }}
+                    </li>
+                  </ul>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Step 3: Duration + Payment Status + optional fields -->
+          <div class="sa-billing-panel" *ngIf="selectedShop() && selectedPlan()">
+            <h4><i class="bi bi-calendar3"></i> Step 3 — Duration & Details</h4>
+
+            <div class="sa-dur-grid">
+              <button *ngFor="let d of durations"
+                class="sa-dur-btn"
+                [class.sa-dur-active]="selectedDuration() === d.months"
+                (click)="selectDuration(d.months)">
+                {{ d.label }}
+              </button>
+            </div>
+
+            <!-- Stacking info -->
+            <div class="sa-stack-info" *ngIf="isStacking()">
+              <i class="bi bi-info-circle-fill"></i>
+              <div>
+                This shop's subscription is still active
+                (<strong>{{ selectedShop()!.daysLeft }} days left</strong>).
+                The new period will start after the current one ends —
+                on <strong>{{ fmtDate(stackedStart()) }}</strong>.
+              </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="fg" style="margin-top:16px;">
+              <label>Payment Status <span class="req">*</span></label>
+              <div class="sa-pay-status-group">
+                <button *ngFor="let s of paymentStatuses"
+                  type="button"
+                  class="sa-ps-btn"
+                  [class.sa-ps-active]="selectedPaymentStatus() === s.val"
+                  [class.sa-ps-paid]="s.val === 'Paid'    && selectedPaymentStatus() === s.val"
+                  [class.sa-ps-pending]="s.val === 'Pending' && selectedPaymentStatus() === s.val"
+                  [class.sa-ps-failed]="s.val === 'Failed'  && selectedPaymentStatus() === s.val"
+                  (click)="selectedPaymentStatus.set(s.val)">
+                  <i class="bi" [class]="s.icon"></i>{{ s.label }}
+                </button>
+              </div>
+              <p class="sa-ps-hint">
+                <i class="bi bi-info-circle"></i>{{ payStatusHint() }}
+              </p>
+            </div>
+
+            <!-- Transaction ref -->
+            <div class="fg" style="margin-top:12px;">
+              <label>Transaction Reference <span style="color:#9ca3af;">(optional)</span></label>
+              <input class="fi" type="text" placeholder="UTR / reference number"
+                [(ngModel)]="transactionRef" />
+            </div>
+
+            <!-- Notes -->
+            <div class="fg" style="margin-top:8px;">
+              <label>Notes <span style="color:#9ca3af;">(optional)</span></label>
+              <input class="fi" type="text" placeholder="e.g. Cash payment collected"
+                [(ngModel)]="payNotes" />
+            </div>
+          </div>
+
+        </div><!-- /LEFT -->
+
+        <!-- RIGHT column — Order Summary ─────────────────────────────── -->
+        <div style="position:sticky; top:80px; display:flex; flex-direction:column; gap:16px;">
+
+          <ng-container *ngIf="selectedShop() && selectedPlan(); else emptyRight">
+            <div class="sa-billing-panel">
+              <h4><i class="bi bi-receipt"></i> Order Summary</h4>
+
+              <div class="sa-order-summary">
+                <div class="sa-os-row">
+                  <span>Shop</span>
+                  <strong>{{ selectedShop()!.businessName }}</strong>
+                </div>
+                <div class="sa-os-row">
+                  <span>Plan</span>
+                  <strong>
+                    <span class="ssc-plan" [class]="planClass(selectedPlan())">
+                      {{ selectedPlan() }}
+                    </span>
+                  </strong>
+                </div>
+                <div class="sa-os-row">
+                  <span>Duration</span>
+                  <strong>{{ selectedDuration() }} month(s)</strong>
+                </div>
+                <div class="sa-os-row">
+                  <span>Status</span>
+                  <strong>
+                    <span class="pay-badge"
+                      [class.pay-success]="selectedPaymentStatus() === 'Paid'"
+                      [class.pay-pending]="selectedPaymentStatus() === 'Pending'"
+                      [class.pay-failed]="selectedPaymentStatus() === 'Failed'">
+                      {{ selectedPaymentStatus() }}
+                    </span>
+                  </strong>
+                </div>
+
+                <ng-container *ngIf="isStacking()">
+                  <div class="sa-os-divider"></div>
+                  <div class="sa-os-row" style="font-size:12px;">
+                    <span>Current expiry</span>
+                    <strong style="color:#f97316;">
+                      {{ fmtDate(selectedShop()!.subscriptionExpiry) }}
+                    </strong>
+                  </div>
+                </ng-container>
+
+                <div class="sa-os-divider"></div>
+                <div class="sa-os-row">
+                  <span>New Start</span>
+                  <strong>{{ fmtDate(stackedStart()) }}</strong>
+                </div>
+                <div class="sa-os-row">
+                  <span>New Expiry</span>
+                  <strong>{{ fmtDate(stackedEnd()) }}</strong>
+                </div>
+                <div class="sa-os-divider"></div>
+                <div class="sa-os-row total">
+                  <span>Total Amount</span>
+                  <strong style="font-size:20px; color:var(--app-primary,#0057FF);">
+                    ₹{{ computedAmount() | number:'1.0-0' }}
+                  </strong>
+                </div>
+              </div>
+
+              <div style="margin-top:16px;">
+                <button class="sa-pay-btn"
+                  [class.pro-pay]="selectedPlan() === 'Pro'"
+                  [disabled]="!canPay() || isSaving()"
+                  (click)="openConfirm()">
+                  <span class="spin-sm" *ngIf="isSaving()"></span>
+                  <i class="bi bi-lock-fill" *ngIf="!isSaving()"></i>
+                  {{ isSaving() ? 'Processing…' : 'Record Payment' }}
+                </button>
+                <p style="text-align:center; font-size:12px; color:#9ca3af; margin-top:8px;">
+                  <i class="bi bi-shield-check"></i> Subscription will be updated immediately
+                </p>
+              </div>
+            </div>
+          </ng-container>
+
+          <ng-template #emptyRight>
+            <div class="sa-billing-panel" style="text-align:center; padding:40px 24px;">
+              <i class="bi bi-arrow-left-circle"
+                 style="font-size:40px; color:#d1d5db; display:block; margin-bottom:12px;"></i>
+              <p style="font-size:14px; color:#6b7280; margin:0;">
+                Select a shop and plan to see the order summary
+              </p>
+            </div>
+          </ng-template>
+
+        </div><!-- /RIGHT -->
+
+      </div><!-- /billing-grid -->
+    </ng-container>
+  </ng-container>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 2 — PAYMENT HISTORY
+       ════════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab() === 'history'">
+
+    <!-- Filters -->
+    <div class="sa-filter-bar">
+      <div class="sa-search-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Search shop name…"
+          [ngModel]="histSearch()"
+          (ngModelChange)="histSearch.set($event); histPage.set(1); loadHistory()" />
+      </div>
+      <select class="sa-select"
+        [(ngModel)]="histPlanFilter"
+        (ngModelChange)="histPage.set(1); loadHistory()">
+        <option value="">All Plans</option>
+        <!-- DB-driven — only active plans -->
+        <option *ngFor="let p of activePlans()" [value]="p">{{ p }}</option>
+      </select>
+      <select class="sa-select"
+        [(ngModel)]="histStatusFilter"
+        (ngModelChange)="histPage.set(1); loadHistory()">
+        <option value="">All Status</option>
+        <option value="Paid">Paid</option>
+        <option value="Pending">Pending</option>
+        <option value="Failed">Failed</option>
+      </select>
+    </div>
+
+    <div class="sa-loading" *ngIf="histLoading()">
+      <div class="spin"></div><span>Loading…</span>
+    </div>
+
+    <ng-container *ngIf="!histLoading()">
+
+      <!-- Table — Edit column is sticky-right so it never scrolls away -->
+      <div class="sa-table-wrap" *ngIf="histItems().length > 0">
+        <table class="sa-hist-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Shop</th>
+              <th>Plan</th>
+              <th>Duration</th>
+              <th>Amount</th>
+              <th>Sub Start</th>
+              <th>Sub Expiry</th>
+              <th>Payment Date</th>
+              <th>Ref</th>
+              <th>Status</th>
+              <th class="col-edit-sticky"><!-- edit --></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of histItems()">
+              <td style="color:#9ca3af; font-size:12px;">{{ item.paymentId }}</td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div class="sa-ss-avatar"
+                       style="width:30px; height:30px; font-size:11px;"
+                       [style.background]="avatarColor(item.businessAccountId)">
+                    {{ initials(item.businessName) }}
+                  </div>
+                  <div>
+                    <div style="font-weight:600; font-size:13.5px;">{{ item.businessName }}</div>
+                    <div style="font-size:11.5px; color:#9ca3af;">{{ item.ownerName }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="ssc-plan" [class]="planClass(item.plan)">{{ item.plan }}</span>
+              </td>
+              <td style="white-space:nowrap;">{{ item.durationMonths }} mo</td>
+              <td style="font-weight:700;">₹{{ item.amount | number:'1.0-0' }}</td>
+              <td style="white-space:nowrap;">{{ fmtDate(item.subscriptionStartDate) }}</td>
+              <td style="white-space:nowrap;">{{ fmtDate(item.subscriptionExpiry) }}</td>
+              <td style="white-space:nowrap;">{{ fmtDateTime(item.paymentDate) }}</td>
+              <td class="td-ref" [title]="item.transactionRef ?? ''">
+                {{ item.transactionRef || '—' }}
+              </td>
+              <td>
+                <span class="pay-badge" [class]="payStatusClass(item.paymentStatus)">
+                  {{ item.paymentStatus }}
+                </span>
+              </td>
+              <!-- Sticky edit cell -->
+              <td class="col-edit-sticky">
+                <button class="sa-edit-btn" title="Edit payment" (click)="openEdit(item)">
+                  <i class="bi bi-pencil-fill"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty -->
+      <div class="sa-empty" *ngIf="histItems().length === 0">
+        <i class="bi bi-receipt"></i>
+        <p>No payment records found</p>
+        <span>Payments recorded here will appear in this history</span>
+      </div>
+
+      <!-- Pagination -->
+      <div class="sa-pagination" style="margin-top:16px;" *ngIf="histTotalPages() > 1">
+        <button class="pg-btn" [disabled]="histPage() === 1"
+          (click)="histGoTo(histPage() - 1)">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="pg-btn"
+          *ngFor="let p of histPages()"
+          [class.pg-active]="p === histPage()"
+          (click)="histGoTo(p)">{{ p }}</button>
+        <button class="pg-btn" [disabled]="histPage() === histTotalPages()"
+          (click)="histGoTo(histPage() + 1)">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+        <span class="pg-info">
+          {{ histTotal() }} records · Page {{ histPage() }}/{{ histTotalPages() }}
+        </span>
+      </div>
+
+    </ng-container>
+  </ng-container>
+
+</div><!-- /sa-page -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     CONFIRM PAYMENT MODAL
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-mask" *ngIf="showConfirm()" (click)="showConfirm.set(false)">
+  <div class="sa-modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-hdr">
+      <h3><i class="bi bi-credit-card"></i> Confirm Payment</h3>
+      <button class="modal-close-btn" (click)="showConfirm.set(false)">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="sa-modal-body">
+      <div class="scm-icon"><i class="bi bi-lock-fill"></i></div>
+      <div class="scm-title">Record Subscription Payment</div>
+      <div class="scm-sub">
+        <ng-container *ngIf="selectedPaymentStatus() === 'Paid'">
+          This will immediately update the shop's subscription
+        </ng-container>
+        <ng-container *ngIf="selectedPaymentStatus() !== 'Paid'">
+          Payment will be recorded — subscription will <strong>not</strong> be updated
+        </ng-container>
+      </div>
+
+      <div class="sa-stack-info"
+           *ngIf="isStacking() && selectedPaymentStatus() === 'Paid'"
+           style="margin:0;">
+        <i class="bi bi-info-circle-fill"></i>
+        <div>
+          Active subscription detected. New period starts
+          <strong>{{ fmtDate(stackedStart()) }}</strong>,
+          stacked after the current expiry.
+        </div>
+      </div>
+
+      <div class="scm-details">
+        <div class="scm-row">
+          <span>Status</span>
+          <strong>
+            <span class="pay-badge"
+              [class.pay-success]="selectedPaymentStatus() === 'Paid'"
+              [class.pay-pending]="selectedPaymentStatus() === 'Pending'"
+              [class.pay-failed]="selectedPaymentStatus() === 'Failed'">
+              {{ selectedPaymentStatus() }}
+            </span>
+          </strong>
+        </div>
+        <div class="scm-row">
+          <span>Shop</span>
+          <strong>{{ selectedShop()?.businessName }}</strong>
+        </div>
+        <div class="scm-row">
+          <span>Plan</span>
+          <strong>
+            <span class="ssc-plan" [class]="planClass(selectedPlan())">{{ selectedPlan() }}</span>
+          </strong>
+        </div>
+        <div class="scm-row">
+          <span>Duration</span>
+          <strong>{{ selectedDuration() }} month(s)</strong>
+        </div>
+        <div class="scm-row">
+          <span>New Start</span>
+          <strong>{{ fmtDate(stackedStart()) }}</strong>
+        </div>
+        <div class="scm-row">
+          <span>New Expiry</span>
+          <strong>{{ fmtDate(stackedEnd()) }}</strong>
+        </div>
+        <div class="scm-row" *ngIf="transactionRef">
+          <span>Ref</span>
+          <strong>{{ transactionRef }}</strong>
+        </div>
+      </div>
+
+      <div class="scm-amount">₹{{ computedAmount() | number:'1.0-0' }}</div>
+    </div>
+
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="showConfirm.set(false)">Cancel</button>
+      <button class="btn-save"
+        [class.pro-pay]="selectedPlan() === 'Pro'"
+        [disabled]="isSaving()"
+        (click)="submitPayment()">
+        <span class="spin-sm" *ngIf="isSaving()"></span>
+        <i class="bi bi-check-lg" *ngIf="!isSaving()"></i>
+        {{ isSaving() ? 'Processing…' : 'Confirm & Record' }}
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     EDIT PAYMENT MODAL
+     ══════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-mask" *ngIf="showEditModal()" (click)="closeEdit()">
+  <div class="sa-modal" (click)="$event.stopPropagation()">
+
+    <div class="modal-hdr">
+      <h3><i class="bi bi-pencil-fill"></i> Edit Payment #{{ editTarget()?.paymentId }}</h3>
+      <button class="modal-close-btn" (click)="closeEdit()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="sa-modal-body" *ngIf="editTarget() as item">
+
+      <!-- Read-only summary -->
+      <div class="scm-details">
+        <div class="scm-row">
+          <span>Shop</span>
+          <strong>{{ item.businessName }}</strong>
+        </div>
+        <div class="scm-row">
+          <span>Duration</span>
+          <strong>{{ item.durationMonths }} month(s)</strong>
+        </div>
+        <div class="scm-row">
+          <span>Amount</span>
+          <strong>₹{{ item.amount | number:'1.0-0' }}</strong>
+        </div>
+        <div class="scm-row">
+          <span>Period</span>
+          <strong>
+            {{ fmtDate(item.subscriptionStartDate) }} → {{ fmtDate(item.subscriptionExpiry) }}
+          </strong>
+        </div>
+        <div class="scm-row" *ngIf="item.transactionRef">
+          <span>Ref</span>
+          <strong>{{ item.transactionRef }}</strong>
+        </div>
+      </div>
+
+      <!-- Editable: Plan — only shows configured DB plans -->
+      <div class="fg">
+        <label>Subscription Plan <span class="req">*</span></label>
+        <div class="sa-dur-grid" style="margin-top:6px;">
+          <button *ngFor="let p of activePlans()"
+            type="button"
+            class="sa-dur-btn"
+            [class.sa-dur-active]="editPlan() === p"
+            (click)="editPlan.set(p)">
+            {{ p }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Editable: Status -->
+      <div class="fg">
+        <label>Payment Status <span class="req">*</span></label>
+        <div class="sa-pay-status-group">
+          <button *ngFor="let s of paymentStatuses"
+            type="button"
+            class="sa-ps-btn"
+            [class.sa-ps-active]="editStatus() === s.val"
+            [class.sa-ps-paid]="s.val === 'Paid'    && editStatus() === s.val"
+            [class.sa-ps-pending]="s.val === 'Pending' && editStatus() === s.val"
+            [class.sa-ps-failed]="s.val === 'Failed'  && editStatus() === s.val"
+            (click)="editStatus.set(s.val)">
+            <i class="bi" [class]="s.icon"></i>{{ s.label }}
+          </button>
+        </div>
+        <p class="sa-ps-hint">
+          <i class="bi bi-info-circle"></i>{{ editStatusHint() }}
+        </p>
+      </div>
+
+      <!-- Revert warning -->
+      <div class="sa-revert-warn" *ngIf="editIsReverting()">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>
+          Changing from <strong>Paid</strong> to <strong>{{ editStatus() }}</strong> will
+          <strong>revert this shop's subscription</strong> to the previous active payment,
+          or expire it if none exists.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-ftr">
+      <button class="btn-cancel" (click)="closeEdit()">Cancel</button>
+      <button class="btn-save"
+        [disabled]="isEditSaving()"
+        (click)="submitEdit()">
+        <span class="spin-sm" *ngIf="isEditSaving()"></span>
+        <i class="bi bi-check-lg" *ngIf="!isEditSaving()"></i>
+        {{ isEditSaving() ? 'Saving…' : (editUnchanged() ? 'No Changes' : 'Save Changes') }}
+      </button>
+    </div>
+
+  </div>
+</div>

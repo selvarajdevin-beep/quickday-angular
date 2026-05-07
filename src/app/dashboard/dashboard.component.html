@@ -1,0 +1,359 @@
+<div class="dashboard">
+
+  <!-- Skeleton -->
+  <div class="skeleton-grid" *ngIf="isLoading()">
+    <div class="sk-card" *ngFor="let i of [1,2,3,4,5,6]"></div>
+  </div>
+
+  <ng-container *ngIf="!isLoading()">
+
+    <!-- ══════════ ADMIN DASHBOARD ══════════ -->
+    <ng-container *ngIf="isAdmin()">
+
+      <!-- Welcome -->
+      <div class="welcome-row">
+        <div>
+          <h2 class="welcome-title">{{ getGreeting() }}, {{ getFirstName() }} 👋</h2>
+          <p class="welcome-sub">Here's what's happening with your business today.</p>
+        </div>
+        <a class="btn-quick-bill" routerLink="/billing">
+          <i class="bi bi-plus-lg"></i>
+          <span class="btn-label">Quick Bill</span>
+        </a>
+      </div>
+
+      <!-- KPI CARDS -->
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-blue">
+          <div class="kc-icon"><i class="bi bi-graph-up-arrow"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Today's Sales</div>
+            <div class="kc-value">{{ fmtMoney(todaySummary().todaySales) }}</div>
+            <div class="kc-sub">{{ todaySummary().todayOrders }} order{{ todaySummary().todayOrders !== 1 ? 's' : '' }} today</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-purple">
+          <div class="kc-icon"><i class="bi bi-currency-rupee"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Month Sales</div>
+            <div class="kc-value">{{ fmtMoney(monthSummary().monthSales) }}</div>
+            <div class="kc-sub">{{ monthSummary().orderCount }} orders this month</div>
+          </div>
+        </div>
+        <a class="kpi-card kpi-red" routerLink="/customers" style="text-decoration:none">
+          <div class="kc-icon"><i class="bi bi-clock-history"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Credit Pending</div>
+            <div class="kc-value">{{ fmtMoney(creditPending()) }}</div>
+            <div class="kc-sub">
+              {{ customersWithDueCount() }} customer{{ customersWithDueCount() !== 1 ? 's' : '' }}
+            </div>
+          </div>
+        </a>
+        <a class="kpi-card kpi-green" routerLink="/customers" style="text-decoration:none">
+          <div class="kc-icon"><i class="bi bi-people-fill"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Active Customers</div>
+            <div class="kc-value">{{ totalCustomers() }}</div>
+            <div class="kc-sub">Total accounts</div>
+          </div>
+        </a>
+        <div class="kpi-card kpi-cash">
+          <div class="kc-icon"><i class="bi bi-cash-stack"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Cash Today</div>
+            <div class="kc-value">{{ fmtMoney(todaySummary().cashAmount) }}</div>
+            <div class="kc-sub">UPI: {{ fmtMoney(todaySummary().upiAmount) }}</div>
+          </div>
+        </div>
+        <a class="kpi-card kpi-warn" routerLink="/inventory" style="text-decoration:none" *ngIf="lowStockCount() > 0">
+          <div class="kc-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Low Stock Alert</div>
+            <div class="kc-value">{{ lowStockCount() }}</div>
+            <div class="kc-sub">Products need restock</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- SALES TREND CHART -->
+      <div class="card chart-card">
+        <div class="card-hdr">
+          <h3>Sales Trend — Last 15 Days</h3>
+          <a class="card-link" routerLink="/reports">Full Report →</a>
+        </div>
+        <div class="chart-wrap">
+          <div class="y-axis">
+            <span>{{ fmtMoney(maxTrend()) }}</span>
+            <span>{{ fmtMoney(maxTrend() * 0.75) }}</span>
+            <span>{{ fmtMoney(maxTrend() * 0.5) }}</span>
+            <span>{{ fmtMoney(maxTrend() * 0.25) }}</span>
+            <span>₹0</span>
+          </div>
+          <div class="chart-area">
+            <div class="grid-lines">
+              <div class="grid-line" *ngFor="let l of [0,1,2,3,4]"></div>
+            </div>
+            <div class="bars-row">
+              <div class="bar-col"
+                *ngFor="let t of salesTrend(); let last = last; trackBy: trackByDate"
+                [title]="fmtDate(t.date) + ': ' + fmtMoney(t.amount) + (t.isReal ? ' (actual)' : ' (estimated)')">
+                <div class="bar-label-top" *ngIf="barH(t.amount) > 28">{{ fmtMoney(t.amount) }}</div>
+                <div class="bar"
+                  [style.height.px]="barH(t.amount)"
+                  [class.bar-real]="t.isReal"
+                  [class.bar-today]="last && t.isReal"
+                  [class.bar-simulated]="!t.isReal"
+                  [class.bar-zero]="t.amount === 0">
+                </div>
+                <div class="bar-date-label">{{ fmtDate(t.date) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <span class="cl-item"><span class="cl-dot cl-dot-sim"></span> Estimated</span>
+          <span class="cl-item"><span class="cl-dot cl-dot-real"></span> Actual orders</span>
+          <span class="cl-item"><span class="cl-dot cl-dot-today"></span> Today</span>
+          <span class="cl-note" *ngIf="todaySummary().todaySales === 0">
+            No sales recorded today yet — create a bill to see it appear
+          </span>
+          <span class="cl-note cl-note-live" *ngIf="todaySummary().todaySales > 0">
+            <i class="bi bi-circle-fill" style="font-size:7px;color:#00C17B"></i>
+            Live — updates instantly on every new bill
+          </span>
+        </div>
+      </div>
+
+      <!-- BOTTOM GRID — desktop 3-col, tablet 1-col, mobile stacked -->
+      <div class="bottom-grid">
+
+      <!-- Pending Dues -->
+      <div class="card">
+        <div class="card-hdr">
+          <h3><i class="bi bi-exclamation-circle-fill" style="color:#EF4444"></i> Pending Dues</h3>
+          <span class="due-total">{{ fmtMoney(totalDue()) }}</span>
+        </div>
+
+        <ng-container *ngIf="customersWithDueCount() > 0">
+          <div class="due-list">
+            <a class="due-item"
+              *ngFor="let c of topDueCustomers(); trackBy: trackById"
+              routerLink="/customers">
+              <div class="di-avatar">{{ initials(c.name) }}</div>
+              <div class="di-body">
+                <span class="di-name">{{ c.name }}</span>
+                <span class="di-phone">{{ c.phone }}</span>
+              </div>
+              <div class="di-right">
+                <span class="di-due">{{ fmtMoney(c.totalDue) }}</span>
+                <span class="di-time">{{ timeAgo(c.lastOrderDate) }}</span>
+              </div>
+            </a>
+            <a class="card-footer-link" routerLink="/customers" [queryParams]="{ hasDue: 'true' }">
+              View all customers with due →
+            </a>
+          </div>
+        </ng-container>
+
+        <div class="all-clear" *ngIf="customersWithDueCount() === 0">
+          <i class="bi bi-check-circle-fill"></i> All customers are clear!
+        </div>
+      </div>
+
+        <!-- Recent Orders -->
+        <div class="card">
+          <div class="card-hdr">
+            <h3><i class="bi bi-receipt" style="color:#0057FF"></i> Recent Orders</h3>
+            <a class="card-link" routerLink="/billing">View all →</a>
+          </div>
+          <div class="orders-list" *ngIf="recentOrders().length > 0">
+            <a class="order-item" *ngFor="let o of recentOrders(); trackBy: trackByOrderId"
+               routerLink="/billing">
+              <div class="oi-row">
+                <div class="oi-av">{{ initials(o.customerName) }}</div>
+                <div class="oi-left">
+                  <span class="oi-cust">{{ o.customerName }}</span>
+                  <span class="oi-id">#{{ o.id }} · {{ timeAgo(o.createdAt) }}</span>
+                </div>
+                <div class="oi-right">
+                  <span class="oi-amount">{{ fmtMoney(o.grandTotal) }}</span>
+                  <span class="oi-status" [ngClass]="statusClass(o.status)">{{ o.status }}</span>
+                </div>
+              </div>
+            </a>
+          </div>
+          <div class="all-clear" *ngIf="recentOrders().length === 0">
+            <i class="bi bi-receipt"></i> No orders yet today
+          </div>
+        </div>
+
+        <!-- Low Stock + Quick Actions -->
+        <div class="card">
+          <div class="card-hdr">
+            <h3><i class="bi bi-boxes" style="color:#F59E0B"></i> Low Stock</h3>
+            <a class="card-link" routerLink="/inventory">Manage →</a>
+          </div>
+          <div class="stock-list" *ngIf="lowStockItems().length > 0">
+            <div class="stock-item" *ngFor="let item of lowStockItems().slice(0,3); trackBy: trackById">
+              <div class="si-top">
+                <span class="si-name">{{ item.name }}</span>
+                <span class="si-qty"
+                  [class.si-critical]="item.currentStock === 0"
+                  [class.si-low]="item.currentStock > 0">
+                  {{ item.currentStock }} left
+                </span>
+              </div>
+              <div class="si-bar-bg">
+                <div class="si-bar-fill"
+                  [style.width.%]="stockPercent(item.currentStock, item.minStockAlert)"
+                  [class.bar-critical]="item.currentStock === 0"
+                  [class.bar-low]="item.currentStock > 0">
+                </div>
+              </div>
+              <div class="si-min">Min stock: {{ item.minStockAlert }} units</div>
+            </div>
+          </div>
+          <div class="all-clear" *ngIf="lowStockItems().length === 0">
+            <i class="bi bi-check-circle-fill"></i> All products well stocked
+          </div>
+          <div class="quick-actions">
+            <div class="qa-title">Quick Actions</div>
+            <div class="qa-grid">
+              <a class="qa-btn" routerLink="/purchases"><i class="bi bi-cart3"></i> Purchase</a>
+              <a class="qa-btn" routerLink="/expenses"><i class="bi bi-wallet2"></i> Expense</a>
+              <a class="qa-btn" routerLink="/reports"><i class="bi bi-bar-chart-line"></i> Reports</a>
+              <a class="qa-btn" routerLink="/suppliers"><i class="bi bi-truck"></i> Suppliers</a>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /bottom-grid -->
+    </ng-container><!-- /isAdmin -->
+
+
+    <!-- ══════════ WORKER DASHBOARD ══════════ -->
+    <ng-container *ngIf="!isAdmin()">
+
+      <div class="welcome-row">
+        <div>
+          <h2 class="welcome-title">{{ getGreeting() }}, {{ getFirstName() }} 👋</h2>
+          <p class="welcome-sub">Your delivery overview for today.</p>
+        </div>
+        <a class="btn-quick-bill" routerLink="/billing">
+          <i class="bi bi-plus-lg"></i>
+          <span class="btn-label">New Bill</span>
+        </a>
+      </div>
+
+      <!-- Worker KPI row -->
+      <div class="kpi-grid worker-kpi-grid">
+        <div class="kpi-card kpi-blue">
+          <div class="kc-icon"><i class="bi bi-receipt-cutoff"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Today's Orders</div>
+            <div class="kc-value">{{ todaySummary().todayOrders }}</div>
+            <div class="kc-sub">Bills created today</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-green">
+          <div class="kc-icon"><i class="bi bi-check2-circle"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Paid Orders</div>
+            <div class="kc-value">{{ todayPaidCount() }}</div>
+            <div class="kc-sub">Settled today</div>
+          </div>
+        </div>
+        <div class="kpi-card kpi-warn">
+          <div class="kc-icon"><i class="bi bi-hourglass-split"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Credit / Partial</div>
+            <div class="kc-value">{{ todayPendingCount() }}</div>
+            <div class="kc-sub">Awaiting payment</div>
+          </div>
+        </div>
+        <a class="kpi-card kpi-warn" routerLink="/inventory" style="text-decoration:none" *ngIf="lowStockCount() > 0">
+          <div class="kc-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+          <div class="kc-body">
+            <div class="kc-label">Low Stock</div>
+            <div class="kc-value">{{ lowStockCount() }}</div>
+            <div class="kc-sub">Need restocking</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Worker bottom grid -->
+      <div class="bottom-grid worker-bottom-grid">
+
+        <div class="card worker-orders-card">
+          <div class="card-hdr">
+            <h3><i class="bi bi-truck" style="color:#0057FF"></i> Today's Deliveries</h3>
+            <a class="card-link" routerLink="/billing">All bills →</a>
+          </div>
+          <div class="orders-list" *ngIf="todayOrders().length > 0">
+            <a class="order-item worker-order-item"
+               *ngFor="let o of todayOrders(); trackBy: trackByOrderId"
+               routerLink="/billing">
+              <div class="oi-row">
+                <div class="wo-avatar">{{ initials(o.customerName) }}</div>
+                <div class="oi-left">
+                  <span class="oi-cust">{{ o.customerName }}</span>
+                  <span class="oi-id">#{{ o.id }} · {{ itemSummary(o) }}</span>
+                </div>
+                <div class="oi-right">
+                  <span class="oi-status" [ngClass]="statusClass(o.status)">{{ o.status }}</span>
+                  <span class="oi-time-inline">{{ timeAgo(o.createdAt) }}</span>
+                </div>
+              </div>
+            </a>
+          </div>
+          <div class="all-clear" *ngIf="todayOrders().length === 0">
+            <i class="bi bi-truck"></i> No deliveries recorded today yet
+          </div>
+          <a class="card-footer-link" routerLink="/billing">Create new bill →</a>
+        </div>
+
+        <div class="card">
+          <div class="card-hdr">
+            <h3><i class="bi bi-boxes" style="color:#F59E0B"></i> Stock Status</h3>
+            <a class="card-link" routerLink="/inventory">View →</a>
+          </div>
+          <div class="stock-list" *ngIf="lowStockItems().length > 0">
+            <div class="stock-item" *ngFor="let item of lowStockItems().slice(0,4); trackBy: trackById">
+              <div class="si-top">
+                <span class="si-name">{{ item.name }}</span>
+                <span class="si-qty"
+                  [class.si-critical]="item.currentStock === 0"
+                  [class.si-low]="item.currentStock > 0">
+                  {{ item.currentStock }} left
+                </span>
+              </div>
+              <div class="si-bar-bg">
+                <div class="si-bar-fill"
+                  [style.width.%]="stockPercent(item.currentStock, item.minStockAlert)"
+                  [class.bar-critical]="item.currentStock === 0"
+                  [class.bar-low]="item.currentStock > 0">
+                </div>
+              </div>
+              <div class="si-min">Min: {{ item.minStockAlert }} units</div>
+            </div>
+          </div>
+          <div class="all-clear" *ngIf="lowStockItems().length === 0">
+            <i class="bi bi-check-circle-fill"></i> All products well stocked
+          </div>
+          <div class="quick-actions">
+            <div class="qa-title">Quick Actions</div>
+            <div class="qa-grid">
+              <a class="qa-btn" routerLink="/billing"><i class="bi bi-receipt-cutoff"></i> Billing</a>
+              <a class="qa-btn" routerLink="/customers"><i class="bi bi-people"></i> Customers</a>
+              <a class="qa-btn" routerLink="/products"><i class="bi bi-box-seam"></i> Products</a>
+              <a class="qa-btn" routerLink="/inventory"><i class="bi bi-boxes"></i> Inventory</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </ng-container><!-- /!isAdmin -->
+
+  </ng-container>
+</div>

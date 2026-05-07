@@ -1,0 +1,364 @@
+<div class="auth-page">
+
+  <!-- ═══════════════════════════════════════════════════════
+       LEFT PANEL  (desktop only)
+  ════════════════════════════════════════════════════════════ -->
+  <div class="auth-left">
+    <div class="brand-block">
+      <div class="brand-icon">
+        <!-- <i class="bi bi-droplet-fill"></i> -->
+          <img 
+            src="logo/quickday-logo.png" 
+            alt="QuickDay" 
+            class="logo-img"
+          />
+      </div>
+      <h1 class="brand-name">QuickDay</h1>
+      <p class="brand-tagline">All-in-one business management</p>
+    </div>
+
+    <!-- Step progress -->
+    <div class="step-visual">
+      <div class="sv-step" [class.sv-active]="step() === 1" [class.sv-done]="step() > 1">
+        <div class="sv-circle">
+          <i class="bi bi-check-lg" *ngIf="step() > 1"></i>
+          <span *ngIf="step() <= 1">1</span>
+        </div>
+        <div>
+          <div class="sv-title">Business Info</div>
+          <div class="sv-sub">Name, shop type &amp; details</div>
+        </div>
+      </div>
+      <div class="sv-connector" [class.sv-conn-done]="step() > 1"></div>
+      <div class="sv-step" [class.sv-active]="step() === 2" [class.sv-done]="step() > 2">
+        <div class="sv-circle">
+          <i class="bi bi-check-lg" *ngIf="step() > 2"></i>
+          <span *ngIf="step() <= 2">2</span>
+        </div>
+        <div>
+          <div class="sv-title">Account Setup</div>
+          <div class="sv-sub">Username, phone &amp; password</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- What gets stored info -->
+    <div class="storage-hint" *ngIf="step() === 1">
+      <i class="bi bi-info-circle"></i>
+      <span>Business info will be saved in <strong>Settings</strong></span>
+    </div>
+    <div class="storage-hint" *ngIf="step() === 2">
+      <i class="bi bi-info-circle"></i>
+      <span>Your account will appear in <strong>Users → Admin</strong></span>
+    </div>
+
+    <div class="auth-decor">
+      <div class="decor-ring ring-1"></div>
+      <div class="decor-ring ring-2"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       RIGHT PANEL
+  ════════════════════════════════════════════════════════════ -->
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+
+      <!-- Mobile: top brand -->
+      <div class="mobile-brand">
+        <div class="brand-icon-sm">
+          <!-- <i class="bi bi-droplet-fill"></i> -->
+           <img 
+              src="logo/quickday-logo.png" 
+              alt="QuickDay" 
+              class="logo-img"
+            />
+        </div>
+        <span class="brand-name-sm">QuickDay</span>
+      </div>
+
+      <!-- Mobile: step pills -->
+      <div class="mobile-steps">
+        <div class="ms-step" [class.ms-active]="step() === 1" [class.ms-done]="step() > 1">
+          <div class="ms-dot">
+            <i class="bi bi-check-lg" *ngIf="step() > 1"></i>
+            <span *ngIf="step() <= 1">1</span>
+          </div>
+          <span>Business</span>
+        </div>
+        <div class="ms-line" [class.ms-line-done]="step() > 1"></div>
+        <div class="ms-step" [class.ms-active]="step() === 2">
+          <div class="ms-dot"><span>2</span></div>
+          <span>Account</span>
+        </div>
+      </div>
+
+      <!-- Error banner -->
+      <div class="error-msg" *ngIf="errorMsg()">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        <span>{{ errorMsg() }}</span>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           STEP 1 — Business Info
+      ═══════════════════════════════════════════════════════ -->
+      <div class="step-panel" *ngIf="step() === 1">
+        <div class="form-header">
+          <h2>Set up your business</h2>
+          <p>This will be saved in your <strong>Business Settings</strong></p>
+        </div>
+
+        <!-- Mobile storage hint -->
+        <div class="mobile-hint">
+          <i class="bi bi-building"></i>
+          <span>Saved to <strong>Settings → Business Info</strong></span>
+        </div>
+
+        <div class="form-body">
+          <!-- Business Name -->
+          <div class="fg">
+            <label>Business Name <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-building"></i></span>
+              <input type="text" placeholder="e.g. AquaPure Water Suppliers"
+                [ngModel]="businessName()" (ngModelChange)="businessName.set($event)"
+                (keyup.enter)="nextStep()" autocomplete="organization" />
+            </div>
+          </div>
+
+          <!-- Owner Name -->
+          <div class="fg">
+            <label>Owner's Full Name <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-person-fill"></i></span>
+              <input type="text" placeholder="Your full name"
+                [ngModel]="ownerName()" (ngModelChange)="ownerName.set($event)"
+                (keyup.enter)="nextStep()" autocomplete="name" />
+            </div>
+          </div>
+
+          <!-- Shop Type -->
+          <div class="fg">
+            <label>Shop / Business Type <span class="req">*</span></label>
+            <div class="shop-select-wrap" (clickOutside)="showShopDropdown.set(false)">
+              <button type="button" class="shop-select-btn"
+                [class.sbt-active]="showShopDropdown()"
+                [class.sbt-selected]="shopType()"
+                (click)="showShopDropdown.update(v => !v)">
+                <span class="sbt-left">
+                  <i class="bi {{ shopTypeIcon() }}"></i>
+                  <span>{{ shopTypeLabel() }}</span>
+                </span>
+                <i class="bi bi-chevron-down sbt-arrow" [class.sbt-arrow-up]="showShopDropdown()"></i>
+              </button>
+              <div class="shop-dropdown" *ngIf="showShopDropdown()">
+                <button type="button" class="sd-item"
+                  *ngFor="let type of shopTypes; trackBy: trackByType"
+                  [class.sd-item-active]="shopType() === type"
+                  (click)="selectShopType(type)">
+                  <i class="bi {{ shopTypeIcons[type] }}"></i>
+                  <span>{{ type }}</span>
+                  <i class="bi bi-check2 sd-check" *ngIf="shopType() === type"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Business Phone — NEW (stored in BusinessSettings) -->
+          <div class="fg">
+            <label>Business Phone <span class="opt">(optional)</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-telephone-fill"></i></span>
+              <input type="tel" placeholder="Business contact number" maxlength="10"
+                [ngModel]="businessPhone()" (ngModelChange)="businessPhone.set($event)"
+                autocomplete="tel" inputmode="numeric" />
+            </div>
+            <span class="field-hint"><i class="bi bi-info-circle"></i> Saved to Business Settings</span>
+          </div>
+
+          <!-- Business Email — NEW (stored in BusinessSettings) -->
+          <div class="fg">
+            <label>Business Email <span class="opt">(optional)</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-envelope-fill"></i></span>
+              <input type="email" placeholder="business@example.com"
+                [ngModel]="businessEmail()" (ngModelChange)="businessEmail.set($event)"
+                autocomplete="email" />
+            </div>
+            <span class="field-hint"><i class="bi bi-info-circle"></i> Saved to Business Settings</span>
+          </div>
+
+          <!-- Address (optional) -->
+          <div class="fg">
+            <label>Business Address <span class="opt">(optional)</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-geo-alt-fill"></i></span>
+              <input type="text" placeholder="Shop / warehouse address"
+                [ngModel]="address()" (ngModelChange)="address.set($event)" />
+            </div>
+          </div>
+
+          <!-- GSTIN (optional) -->
+          <div class="fg">
+            <label>GSTIN <span class="opt">(optional)</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-file-earmark-text"></i></span>
+              <input type="text" placeholder="e.g. 33AABCA1234A1Z5"
+                maxlength="15" style="text-transform:uppercase"
+                [ngModel]="gstin()" (ngModelChange)="gstin.set($event.toUpperCase())" />
+            </div>
+          </div>
+
+          <button class="btn-primary" (click)="nextStep()">
+            Continue to Account Setup <i class="bi bi-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════
+           STEP 2 — Account Setup
+      ═══════════════════════════════════════════════════════ -->
+      <div class="step-panel" *ngIf="step() === 2">
+        <div class="form-header">
+          <button class="back-btn" (click)="prevStep()">
+            <i class="bi bi-arrow-left"></i> Back
+          </button>
+          <h2>Create admin account</h2>
+          <p>This will be added as <strong>Admin</strong> in <strong>Users</strong></p>
+        </div>
+
+        <!-- Mobile hint -->
+        <div class="mobile-hint mobile-hint--green">
+          <i class="bi bi-people-fill"></i>
+          <span>Saved to <strong>Users → Admin</strong> for <em>{{ businessName() }}</em></span>
+        </div>
+
+        <div class="form-body">
+
+          <!-- Username — NEW (stored in Users tab) -->
+          <div class="fg">
+            <label>Username <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-at"></i></span>
+              <input type="text" placeholder="e.g. john_admin"
+                [ngModel]="username()" (ngModelChange)="username.set($event)"
+                autocomplete="username" />
+            </div>
+            <span class="field-hint"><i class="bi bi-info-circle"></i> Saved to Users tab</span>
+          </div>
+
+          <!-- Phone (personal — stored in Users tab) -->
+          <div class="fg">
+            <label>Mobile Number <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-telephone-fill"></i></span>
+              <input type="tel" placeholder="10-digit mobile" maxlength="10"
+                [ngModel]="phone()" (ngModelChange)="phone.set($event)"
+                autocomplete="tel" inputmode="numeric" />
+            </div>
+            <span class="field-hint"><i class="bi bi-info-circle"></i> Your personal number — saved to Users tab</span>
+          </div>
+
+          <!-- Email (personal — stored in Users tab) -->
+          <div class="fg">
+            <label>Personal Email <span class="opt">(optional)</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-envelope-fill"></i></span>
+              <input type="email" placeholder="your@email.com"
+                [ngModel]="email()" (ngModelChange)="email.set($event)"
+                autocomplete="email" />
+            </div>
+            <span class="field-hint"><i class="bi bi-info-circle"></i> Saved to Users tab</span>
+          </div>
+
+          <!-- Password -->
+          <div class="fg">
+            <label>Password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-prefix"><i class="bi bi-lock-fill"></i></span>
+              <input [type]="showPwd() ? 'text' : 'password'"
+                placeholder="Min 6 characters"
+                [ngModel]="password()" (ngModelChange)="password.set($event)"
+                autocomplete="new-password" />
+              <button type="button" class="pwd-eye" (click)="showPwd.update(v => !v)">
+                <i class="bi" [class.bi-eye]="!showPwd()" [class.bi-eye-slash]="showPwd()"></i>
+              </button>
+            </div>
+            <div class="pwd-strength" *ngIf="password()">
+              <div class="ps-bar">
+                <div class="ps-fill"
+                  [style.width.%]="pwdStrength() * 20"
+                  [style.background]="pwdStrengthColor()">
+                </div>
+              </div>
+              <span class="ps-label" [style.color]="pwdStrengthColor()">
+                {{ pwdStrengthLabel() }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Confirm Password -->
+          <div class="fg">
+            <label>Confirm Password <span class="req">*</span></label>
+            <div class="input-wrap"
+              [class.iw-ok]="passwordsMatch()"
+              [class.iw-err]="confirmPassword() && !passwordsMatch()">
+              <span class="input-prefix"><i class="bi bi-lock-fill"></i></span>
+              <input [type]="showConfirmPwd() ? 'text' : 'password'"
+                placeholder="Re-enter password"
+                [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)"
+                autocomplete="new-password" />
+              <button type="button" class="pwd-eye" (click)="showConfirmPwd.update(v => !v)">
+                <i class="bi" [class.bi-eye]="!showConfirmPwd()" [class.bi-eye-slash]="showConfirmPwd()"></i>
+              </button>
+              <span class="match-icon" *ngIf="confirmPassword()">
+                <i class="bi"
+                  [class.bi-check-circle-fill]="passwordsMatch()"
+                  [class.bi-x-circle-fill]="!passwordsMatch()"
+                  [style.color]="passwordsMatch() ? '#00C17B' : '#EF4444'">
+                </i>
+              </span>
+            </div>
+          </div>
+
+          <!-- Role badge (informational) -->
+          <div class="role-badge">
+            <i class="bi bi-shield-fill-check"></i>
+            <div>
+              <strong>Admin Role</strong>
+              <span>Full access to all modules</span>
+            </div>
+          </div>
+
+          <!-- Terms -->
+          <label class="terms-row">
+            <input type="checkbox"
+              [checked]="agreedToTerms()"
+              (change)="agreedToTerms.set(!agreedToTerms())" />
+            <span>
+              I agree to the
+              <a href="#" (click)="$event.preventDefault()">Terms of Service</a>
+              and
+              <a href="#" (click)="$event.preventDefault()">Privacy Policy</a>
+            </span>
+          </label>
+
+          <button class="btn-success" (click)="register()" [disabled]="isLoading()">
+            <span class="spin-sm" *ngIf="isLoading()"></span>
+            <ng-container *ngIf="!isLoading()">
+              <i class="bi bi-check-lg"></i> Create Account &amp; Go to Dashboard
+            </ng-container>
+            <ng-container *ngIf="isLoading()">Creating account…</ng-container>
+          </button>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="form-footer">
+        Already have an account?
+        <a routerLink="/login">Sign in</a>
+      </div>
+
+    </div>
+  </div>
+</div>

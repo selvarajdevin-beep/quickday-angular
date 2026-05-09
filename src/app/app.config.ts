@@ -1,10 +1,11 @@
-import { ApplicationConfig, provideZoneChangeDetection, provideAppInitializer, inject } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection, provideAppInitializer, inject, isDevMode } from '@angular/core';
 import { provideRouter }       from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { routes }              from './app.routes';
 import { ConstantsService }    from './services/constants.service';
 import { authInterceptor }     from './interceptors/auth.interceptor';
 import { firstValueFrom }      from 'rxjs';
+import { provideServiceWorker } from '@angular/service-worker';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -16,6 +17,9 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       const cs = inject(ConstantsService);
       return firstValueFrom(cs.load());
-    }),
+    }), provideServiceWorker('ngsw-worker.js', {
+            enabled: !isDevMode(),
+            registrationStrategy: 'registerWhenStable:30000'
+          }),
   ]
 };

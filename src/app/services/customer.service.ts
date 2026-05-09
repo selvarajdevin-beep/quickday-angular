@@ -39,7 +39,7 @@ import { environment } from '../../environments/environment';
 export class CustomerService {
 
   // private readonly api = '/api/customers';
-  private readonly api = `${environment.apiUrl}/api/customers`;
+  private readonly api = `${environment.apiUrl}/customers`;
 
   // RowVersion cache (customerId → base64)
   private _rowVersions = new Map<number, string>();

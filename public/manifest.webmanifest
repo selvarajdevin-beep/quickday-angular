@@ -1,6 +1,6 @@
 {
-  "name": "shop_claude",
-  "short_name": "shop_claude",
+  "name": "QuickDay",
+  "short_name": "QuickDay",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",

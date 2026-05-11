@@ -37,9 +37,9 @@
       <button class="snav-item" [class.snav-active]="activeSection()==='plan'" (click)="activeSection.set('plan')">
         <i class="bi bi-star-fill"></i><span class="snav-label">Subscription</span>
       </button>
-      <button class="snav-item" [class.snav-active]="activeSection()==='data'" (click)="activeSection.set('data')">
+      <!-- <button class="snav-item" [class.snav-active]="activeSection()==='data'" (click)="activeSection.set('data')">
         <i class="bi bi-database-fill"></i><span class="snav-label">Data &amp; Backup</span>
-      </button>
+      </button> -->
     </nav>
 
     <!-- ══ Content Area ══ -->
@@ -52,7 +52,7 @@
           <div><h3>Business Information</h3><p>Changes reflect in the sidebar, footer and bills</p></div>
         </div>
         <div class="sc-body">
-          <div class="shop-type-section">
+          <!-- <div class="shop-type-section">
             <div class="shop-type-label">
               <i class="bi bi-shop"></i>
               <div><span class="stl-title">Shop Type</span><span class="stl-hint">Helps personalise the app for your business</span></div>
@@ -65,7 +65,7 @@
                 <i class="bi" [class]="shopTypeIcons[type]"></i><span>{{ type }}</span>
               </button>
             </div>
-          </div>
+          </div> -->
           <div class="section-divider"></div>
           <div class="form-grid">
             <div class="fg">
@@ -93,7 +93,7 @@
               <label>GSTIN (optional)</label>
               <input class="fi" type="text" placeholder="e.g. 33AABCA1234A1Z5" [(ngModel)]="form.gstin" />
             </div>
-            <div class="fg">
+            <!-- <div class="fg">
               <label>Currency</label>
               <div class="currency-row">
                 <select class="fi" [(ngModel)]="form.currency">
@@ -104,7 +104,7 @@
                   <span class="cur-code">{{ form.currency }}</span>
                 </div>
               </div>
-            </div>
+            </div> -->
           </div>
         </div>
         <div class="sc-footer">

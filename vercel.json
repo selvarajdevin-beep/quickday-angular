@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build:prod",
-  "outputDirectory": "dist/shop_claude",
+  "outputDirectory": "dist/shop_claude/browser",
   "framework": "angular",
   "rewrites": [
     {

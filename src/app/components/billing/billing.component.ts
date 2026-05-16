@@ -649,102 +649,227 @@ export class BillingComponent implements OnInit {
   // a temporary @media print stylesheet and call window.print()
   // directly. Desktop still uses the popup window approach.
   // ══════════════════════════════════════════════════════════
+  // printInvoice(): void {
+  //   const el = document.getElementById('inv-print-area');
+  //   if (!el) return;
+
+  //   // Detect mobile device
+  //   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  //   if (isMobile) {
+  //     // Mobile: inject print CSS into current document, print, then clean up
+  //     const styleId = 'inv-mobile-print-style';
+  //     let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+  //     if (!styleEl) {
+  //       styleEl = document.createElement('style');
+  //       styleEl.id = styleId;
+  //       document.head.appendChild(styleEl);
+  //     }
+  //     styleEl.textContent = `
+  //       @media print {
+  //         body > * { display: none !important; }
+  //         .inv-mask {
+  //           display: block !important;
+  //           position: static !important;
+  //           background: none !important;
+  //           padding: 0 !important;
+  //           backdrop-filter: none !important;
+  //         }
+  //         .inv-shell {
+  //           max-height: none !important;
+  //           box-shadow: none !important;
+  //           background: #fff !important;
+  //           border-radius: 0 !important;
+  //           animation: none !important;
+  //           overflow: visible !important;
+  //           display: block !important;
+  //         }
+  //         .inv-toolbar { display: none !important; }
+  //         .inv-preview-area {
+  //           padding: 0 !important;
+  //           background: #fff !important;
+  //           overflow: visible !important;
+  //         }
+  //         #inv-print-area {
+  //           box-shadow: none !important;
+  //           border-radius: 0 !important;
+  //         }
+  //         .inv-doc { padding: 16px 20px !important; }
+  //         .inv-header {
+  //           display: flex !important;
+  //           flex-direction: row !important;
+  //           justify-content: space-between !important;
+  //           align-items: flex-start !important;
+  //           gap: 16px !important;
+  //           margin-bottom: 16px !important;
+  //         }
+  //         .inv-brand { flex: 1 !important; min-width: 0 !important; }
+  //         .inv-brand-icon {
+  //           width: 40px !important;
+  //           height: 40px !important;
+  //           font-size: 18px !important;
+  //           border-radius: 9px !important;
+  //         }
+  //         .inv-business-name { font-size: 15px !important; }
+  //         .inv-meta {
+  //           text-align: right !important;
+  //           flex-shrink: 0 !important;
+  //           max-width: none !important;
+  //         }
+  //         .inv-meta-badge {
+  //           font-size: 10px !important;
+  //           margin-bottom: 6px !important;
+  //         }
+  //         .inv-meta-table { margin-left: auto !important; }
+  //         .imt-lbl { text-align: right !important; font-size: 10px !important; }
+  //         .imt-val  { text-align: right !important; font-size: 12px !important; }
+  //         .inv-items-table tbody tr:hover { background: transparent !important; }
+  //         .inv-totals { justify-content: flex-end !important; }
+  //         .inv-totals-inner { width: 220px !important; }
+  //         .inv-footer {
+  //           flex-direction: row !important;
+  //           justify-content: space-between !important;
+  //           align-items: flex-end !important;
+  //         }
+  //         .inv-footer-right { text-align: right !important; flex-shrink: 0 !important; }
+  //         .inv-sig-line { margin-left: auto !important; }
+  //         @page { margin: 8mm; size: A4; }
+  //       }
+  //     `;
+  //     window.print();
+  //     // Clean up after print dialog closes
+  //     setTimeout(() => {
+  //       if (styleEl) styleEl.textContent = '';
+  //     }, 1500);
+  //     return;
+  //   }
+
+  //   // Desktop: open popup window
+  //   const invoiceHtml = el.outerHTML;
+  //   const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+  //     .map(s => s.outerHTML).join('\n');
+  //   const printWin = window.open('', '_blank', 'width=900,height=700');
+  //   if (!printWin) { this.printFallback(); return; }
+  //   printWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title>${styles}<style>
+  //     * { margin:0; padding:0; box-sizing:border-box; }
+  //     body { background:#fff; font-family:'DM Sans',sans-serif; }
+  //     #inv-print-area { width:100%; max-width:800px; margin:0 auto; box-shadow:none!important; border-radius:0!important; }
+  //     .inv-doc { padding:24px 32px!important; }
+  //     .inv-header { display:flex!important; flex-direction:row!important; justify-content:space-between!important; align-items:flex-start!important; gap:24px!important; margin-bottom:20px!important; }
+  //     .inv-brand { flex:1!important; min-width:0!important; }
+  //     .inv-meta { text-align:right!important; flex-shrink:0!important; max-width:none!important; }
+  //     .inv-meta-table { margin-left:auto!important; }
+  //     .imt-lbl { text-align:right!important; font-size:11px!important; }
+  //     .imt-val { text-align:right!important; font-size:13px!important; }
+  //     .inv-items-table tbody tr:hover { background:transparent!important; }
+  //     .inv-totals { justify-content:flex-end!important; }
+  //     .inv-totals-inner { width:260px!important; }
+  //     .inv-logo-img { width:52px!important; height:52px!important; border-radius:10px!important; object-fit:cover!important; }
+  //     @page { margin:10mm; size:A4; }
+  //   </style></head><body>${invoiceHtml}<script>window.onload=function(){setTimeout(function(){window.print();window.close();},400);};<\/script></body></html>`);
+  //   printWin.document.close();
+  // }
+
   printInvoice(): void {
     const el = document.getElementById('inv-print-area');
     if (!el) return;
 
-    // Detect mobile device
     const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     if (isMobile) {
-      // Mobile: inject print CSS into current document, print, then clean up
-      const styleId = 'inv-mobile-print-style';
-      let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
-      if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = styleId;
-        document.head.appendChild(styleEl);
-      }
+      // ── Mobile fix ────────────────────────────────────────────────────────
+      // Android Chrome cannot print position:fixed elements — the modal is
+      // invisible during print, producing a blank page.
+      // Solution: clone the invoice node into a plain <div> appended to
+      // <body>, hide everything else with @media print, print, then remove.
+
+      const CLONE_ID   = 'inv-mobile-print-clone';
+      const STYLE_ID   = 'inv-mobile-print-style';
+
+      // Remove any leftover clone from a previous print attempt
+      document.getElementById(CLONE_ID)?.remove();
+      document.getElementById(STYLE_ID)?.remove();
+
+      // Clone the invoice content into a plain in-flow div
+      const clone = el.cloneNode(true) as HTMLElement;
+      clone.id    = CLONE_ID;
+      clone.style.cssText = [
+        'position:static',
+        'display:block',
+        'width:100%',
+        'max-width:800px',
+        'margin:0 auto',
+        'box-shadow:none',
+        'border-radius:0',
+        'background:#fff',
+      ].join(';');
+      document.body.appendChild(clone);
+
+      // Inject print styles: hide everything except the clone
+      const styleEl       = document.createElement('style');
+      styleEl.id          = STYLE_ID;
       styleEl.textContent = `
         @media print {
-          body > * { display: none !important; }
-          .inv-mask {
-            display: block !important;
-            position: static !important;
-            background: none !important;
-            padding: 0 !important;
-            backdrop-filter: none !important;
+          body > *                          { display: none !important; }
+          body > #${CLONE_ID}              { display: block !important; }
+          #${CLONE_ID}                     {
+            position: static  !important;
+            box-shadow: none  !important;
+            border-radius: 0  !important;
+            background: #fff  !important;
+            width: 100%       !important;
+            padding: 0        !important;
           }
-          .inv-shell {
-            max-height: none !important;
-            box-shadow: none !important;
-            background: #fff !important;
-            border-radius: 0 !important;
-            animation: none !important;
-            overflow: visible !important;
-            display: block !important;
-          }
-          .inv-toolbar { display: none !important; }
-          .inv-preview-area {
-            padding: 0 !important;
-            background: #fff !important;
-            overflow: visible !important;
-          }
-          #inv-print-area {
-            box-shadow: none !important;
-            border-radius: 0 !important;
-          }
-          .inv-doc { padding: 16px 20px !important; }
-          .inv-header {
-            display: flex !important;
-            flex-direction: row !important;
+          #${CLONE_ID} .inv-doc            { padding: 16px 20px !important; }
+          #${CLONE_ID} .inv-header {
+            display: flex           !important;
+            flex-direction: row     !important;
             justify-content: space-between !important;
             align-items: flex-start !important;
-            gap: 16px !important;
-            margin-bottom: 16px !important;
+            gap: 16px               !important;
+            margin-bottom: 16px     !important;
           }
-          .inv-brand { flex: 1 !important; min-width: 0 !important; }
-          .inv-brand-icon {
-            width: 40px !important;
-            height: 40px !important;
+          #${CLONE_ID} .inv-brand          { flex: 1 !important; min-width: 0 !important; }
+          #${CLONE_ID} .inv-brand-icon     {
+            width: 40px   !important;
+            height: 40px  !important;
             font-size: 18px !important;
             border-radius: 9px !important;
           }
-          .inv-business-name { font-size: 15px !important; }
-          .inv-meta {
-            text-align: right !important;
-            flex-shrink: 0 !important;
-            max-width: none !important;
-          }
-          .inv-meta-badge {
-            font-size: 10px !important;
-            margin-bottom: 6px !important;
-          }
-          .inv-meta-table { margin-left: auto !important; }
-          .imt-lbl { text-align: right !important; font-size: 10px !important; }
-          .imt-val  { text-align: right !important; font-size: 12px !important; }
-          .inv-items-table tbody tr:hover { background: transparent !important; }
-          .inv-totals { justify-content: flex-end !important; }
-          .inv-totals-inner { width: 220px !important; }
-          .inv-footer {
-            flex-direction: row !important;
+          #${CLONE_ID} .inv-business-name  { font-size: 15px !important; }
+          #${CLONE_ID} .inv-meta           { text-align: right !important; flex-shrink: 0 !important; }
+          #${CLONE_ID} .inv-meta-badge     { font-size: 10px !important; margin-bottom: 6px !important; }
+          #${CLONE_ID} .inv-meta-table     { margin-left: auto !important; }
+          #${CLONE_ID} .imt-lbl            { text-align: right !important; font-size: 10px !important; }
+          #${CLONE_ID} .imt-val            { text-align: right !important; font-size: 12px !important; }
+          #${CLONE_ID} .inv-totals         { justify-content: flex-end !important; }
+          #${CLONE_ID} .inv-totals-inner   { width: 220px !important; }
+          #${CLONE_ID} .inv-footer {
+            flex-direction: row             !important;
             justify-content: space-between !important;
-            align-items: flex-end !important;
+            align-items: flex-end           !important;
           }
-          .inv-footer-right { text-align: right !important; flex-shrink: 0 !important; }
-          .inv-sig-line { margin-left: auto !important; }
+          #${CLONE_ID} .inv-sig-line       { margin-left: auto !important; }
+          #${CLONE_ID} .inv-items-table tbody tr:hover { background: transparent !important; }
           @page { margin: 8mm; size: A4; }
         }
       `;
-      window.print();
-      // Clean up after print dialog closes
+      document.head.appendChild(styleEl);
+
+      // Small delay so the clone renders before the print dialog opens
       setTimeout(() => {
-        if (styleEl) styleEl.textContent = '';
-      }, 1500);
+        window.print();
+        // Clean up after the dialog closes
+        setTimeout(() => {
+          document.getElementById(CLONE_ID)?.remove();
+          document.getElementById(STYLE_ID)?.remove();
+        }, 1500);
+      }, 120);
+
       return;
     }
 
-    // Desktop: open popup window
+    // ── Desktop: existing popup window approach (unchanged) ──────────────────
     const invoiceHtml = el.outerHTML;
     const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
       .map(s => s.outerHTML).join('\n');

@@ -863,24 +863,65 @@ export class BillingComponent implements OnInit {
   // Solution: if the string has no timezone info, append 'Z' to
   // parse it as UTC, matching how the server stores/returns it.
   // ══════════════════════════════════════════════════════════
-  timeAgo(date: Date | string): string {
+  // timeAgo(date: Date | string): string {
+  //   let d: Date;
+  //   if (typeof date === 'string') {
+  //     // Check if string already has timezone info (Z, +, or -)
+  //     const hasTimezone = date.endsWith('Z') ||
+  //                         /[+-]\d{2}:\d{2}$/.test(date) ||
+  //                         /[+-]\d{4}$/.test(date);
+  //     d = new Date(hasTimezone ? date : date + 'Z');
+  //   } else {
+  //     d = date;
+  //   }
+
+  //   const diff = Date.now() - d.getTime();
+  //   const m = Math.floor(diff / 60000);
+  //   if (m < 1)  return 'Just now';
+  //   if (m < 60) return `${m}m ago`;
+  //   const h = Math.floor(m / 60);
+  //   if (h < 24) return `${h}h ago`;
+  //   return `${Math.floor(h / 24)}d ago`;
+  // }
+
+  timeAgo(date: Date | string | null): string {
+    if (!date) return '—';
+
     let d: Date;
+
     if (typeof date === 'string') {
-      // Check if string already has timezone info (Z, +, or -)
-      const hasTimezone = date.endsWith('Z') ||
-                          /[+-]\d{2}:\d{2}$/.test(date) ||
-                          /[+-]\d{4}$/.test(date);
-      d = new Date(hasTimezone ? date : date + 'Z');
+
+      // Convert SQL datetime to ISO UTC
+      // "2026-05-12 10:13:14"
+      // → "2026-05-12T10:13:14Z"
+
+      const normalized = date.includes('T')
+        ? date
+        : date.replace(' ', 'T');
+
+      const withTimezone =
+        normalized.endsWith('Z') ||
+        /[+-]\d{2}:\d{2}$/.test(normalized)
+          ? normalized
+          : normalized + 'Z';
+
+      d = new Date(withTimezone);
+
     } else {
       d = date;
     }
 
     const diff = Date.now() - d.getTime();
+
     const m = Math.floor(diff / 60000);
+
     if (m < 1)  return 'Just now';
     if (m < 60) return `${m}m ago`;
+
     const h = Math.floor(m / 60);
+
     if (h < 24) return `${h}h ago`;
+
     return `${Math.floor(h / 24)}d ago`;
   }
 

@@ -41,15 +41,18 @@ export class InventoryComponent implements OnInit {
 
   private stockSearchSubject = new Subject<string>();
 
+  totalStockUnits = signal(0);
+  lowStockCount   = signal(0);
+
   // ── Summary KPIs — computed from current page ─────────────
   // For full accuracy a summary endpoint can be added;
   // for now these reflect the filtered server results
-  totalStockUnits = computed(() =>
-    this.stockItems().reduce((s, i) => s + i.currentStock, 0)
-  );
-  lowStockCount = computed(() =>
-    this.stockItems().filter(i => i.currentStock <= i.minStockAlert).length
-  );
+  // totalStockUnits = computed(() =>
+  //   this.stockItems().reduce((s, i) => s + i.currentStock, 0)
+  // );
+  // lowStockCount = computed(() =>
+  //   this.stockItems().filter(i => i.currentStock <= i.minStockAlert).length
+  // );
 
   // filteredInventory = current page items (client-side sort only)
   filteredInventory = computed(() => {
@@ -142,6 +145,9 @@ export class InventoryComponent implements OnInit {
       next: paged => {
         this.stockItems.set(paged.items);
         this.stockTotal.set(paged.totalCount);
+
+          this.totalStockUnits.set(paged.totalStockUnits ?? 0);
+          this.lowStockCount.set(paged.lowStockCount ?? 0);
         callback?.();
       },
       error: e => callback?.(e),
@@ -296,6 +302,7 @@ export class InventoryComponent implements OnInit {
         this.toast('Alert threshold updated.', 'success');
         this.showAlertModal.set(false);
         this.isAlertSaving.set(false);
+        this.loadStock();
       },
       error: (err: Error) => {
         this.toast(err.message || 'Failed to update threshold.', 'error');

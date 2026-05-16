@@ -430,9 +430,11 @@
 
 /* Toolbar */
 .inv-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #1a1a2e; flex-shrink: 0; }
-.inv-tb-left  { display: flex; align-items: center; gap: 12px; }
+/* .inv-tb-left  { display: flex; align-items: center; gap: 12px; } */
+.inv-tb-left  { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .inv-tb-right { display: flex; align-items: center; gap: 8px; }
-.inv-tb-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,.85); font-family: 'Space Mono', monospace; letter-spacing: .5px; }
+/* .inv-tb-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,.85); font-family: 'Space Mono', monospace; letter-spacing: .5px; } */
+.inv-tb-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,.85); font-family: 'Space Mono', monospace; letter-spacing: .5px; white-space: nowrap; flex-shrink: 0; overflow: visible; }
 .inv-tb-btn { display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); color: #fff; padding: 7px 13px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap; }
 .inv-tb-btn:hover { background: rgba(255,255,255,.18); }
 .inv-tb-btn:disabled { opacity: .6; cursor: not-allowed; }
@@ -680,7 +682,10 @@
 
   /* Toolbar compact */
   .inv-toolbar { padding: 10px 14px; gap: 8px; }
-  .inv-tb-title { font-size: 13px; }
+  /* .inv-tb-title { font-size: 13px; } */
+  .inv-tb-left  { gap: 8px; flex: 1; min-width: 0; }
+  .inv-tb-title { font-size: 12px !important; flex-shrink: 0 !important; white-space: nowrap !important; overflow: visible !important; }
+  .inv-tb-close { flex-shrink: 0; }
   .inv-tb-btn { padding: 7px 10px; font-size: 12px; gap: 5px; }
   .inv-tb-btn span { font-size: 12px; }
 

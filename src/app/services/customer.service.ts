@@ -1,25 +1,3 @@
-/**
- * CustomerService — UPDATED
- * ─────────────────────────────────────────────────────────────────────────────
- * All CRUD operations now call the real API:
- *   GET    /api/customers                      → getCustomers()
- *   POST   /api/customers                      → createCustomer()
- *   PUT    /api/customers/{id}                 → updateCustomer()
- *   PATCH  /api/customers/{id}/toggle-status   → toggleCustomerStatus()
- *
- * Key points:
- *   • _customers starts EMPTY — getCustomers() populates it.
- *   • RowVersion cached per customer ID for optimistic concurrency.
- *   • recomputeCustomerDues() stays as a local computed operation for now
- *     because Orders are not yet migrated to the backend. It still computes
- *     from CoreStateService._orders (which holds mock data until Orders are
- *     migrated). Once Orders are migrated this will be replaced by a
- *     GET /api/customers?refresh=dues call.
- *   • getEffectivePrice() remains pure UI logic — no business logic in it.
- *   • BillingComponent reads svc.customers() which is CoreStateService._customers
- *     — same signal, still reactive, zero component changes.
- * ─────────────────────────────────────────────────────────────────────────────
- */
 import { Injectable, computed } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
@@ -38,13 +16,10 @@ import { environment } from '../../environments/environment';
 @Injectable({ providedIn: 'root' })
 export class CustomerService {
 
-  // private readonly api = '/api/customers';
   private readonly api = `${environment.apiUrl}/customers`;
 
-  // RowVersion cache (customerId → base64)
   private _rowVersions = new Map<number, string>();
 
-  // Expose signals
   customers!:          typeof this.core.customers;
   totalCreditPending!: typeof this.core.totalCreditPending;
 
@@ -60,12 +35,6 @@ export class CustomerService {
   // READ
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * GET /api/customers?page=&pageSize=&search=&status=&type=&hasDue=
-   * Returns one page + full-dataset KPI summary.
-   * The summary always reflects ALL customers regardless of filters,
-   * so the KPI strip (Active / Hotel / Home / Due) is always accurate.
-   */
   getCustomers(params?: {
     page?: number; pageSize?: number;
     search?: string; status?: string; type?: string; hasDue?: boolean;
@@ -93,28 +62,29 @@ export class CustomerService {
         tap(paged => {
           paged.items.forEach(d => this._rowVersions.set(d.id, d.rowVersion));
           this.core._customers.set(paged.items.map(d => this._dtoToCustomer(d)));
+
+          // ── Apply full-dataset due total from summary ─────────────────
+          // The summary always aggregates ALL customers regardless of the
+          // current page filter, so the badge stays accurate.
+          if (paged.summary?.totalDueAmount != null) {
+            this.core._totalCreditPendingOverride.set(paged.summary.totalDueAmount);
+          }
         }),
         map(paged => ({
           ...paged,
           items: paged.items.map(d => this._dtoToCustomer(d)),
-          // summary is passed through as-is from the API response
           summary: paged.summary ?? {
             totalCount: paged.totalCount,
             activeCount: 0, inactiveCount: 0,
             hotelCount: 0, homeCount: 0,
             customersWithDue: 0, totalDueAmount: 0,
+            topDueCustomers: [],
           },
         })),
         catchError(err => throwError(() => this._extractError(err))),
       );
   }
 
-  /**
-   * GET /api/customers?pageSize=9999
-   * Fetches all customers without a meaningful page limit.
-   * Used by Dashboard KPIs, Reports, and BillingComponent customer dropdown.
-   * Does NOT replace the paged _customers signal — that stays for the list page.
-   */
   getCustomersAll(): Observable<Customer[]> {
     const query = new HttpParams({ fromObject: { page: '1', pageSize: '9999' } });
 
@@ -128,7 +98,6 @@ export class CustomerService {
         }),
         tap(dtos => {
           dtos.forEach(d => this._rowVersions.set(d.id, d.rowVersion));
-          // Populate the signal with the full list so billing dropdown works
           this.core._customers.set(dtos.map(d => this._dtoToCustomer(d)));
         }),
         map(dtos => dtos.map(d => this._dtoToCustomer(d))),
@@ -136,9 +105,10 @@ export class CustomerService {
       );
   }
 
-  // customer.service.ts
-
-  /** GET /api/customers/summary — KPI strip only, no rows fetched */
+  /** GET /api/customers/summary — KPI strip only, no rows fetched.
+   *  Always writes totalDueAmount into the override signal so the
+   *  shell notification badge reflects the full-dataset value.
+   */
   getCustomerSummary(): Observable<CustomerSummary> {
     return this.http
       .get<ApiResponse<CustomerSummary>>(`${this.api}/summary`)
@@ -147,6 +117,10 @@ export class CustomerService {
           if (!res.success || !res.data)
             throw new Error(res.message ?? 'Failed to load customer summary.');
           return res.data;
+        }),
+        // ── KEY FIX: write the authoritative total into the override ──────
+        tap(summary => {
+          this.core._totalCreditPendingOverride.set(summary.totalDueAmount);
         }),
         catchError(err => throwError(() => this._extractError(err))),
       );
@@ -179,6 +153,9 @@ export class CustomerService {
           this._rowVersions.set(dto.id, dto.rowVersion);
           const customer = this._dtoToCustomer(dto);
           this.core._customers.update(list => [customer, ...list]);
+
+          // New customer starts with zero due — just refresh to be safe
+          this._refreshCreditPendingBadge();
         }),
         map(dto => this._dtoToCustomer(dto)),
         catchError(err => throwError(() => this._extractError(err))),
@@ -211,6 +188,10 @@ export class CustomerService {
           const updated = this._dtoToCustomer(dto);
           this.core._customers.update(list =>
             list.map(c => c.id === updated.id ? updated : c));
+
+          // totalDue on the returned DTO is authoritative — patch the
+          // override so the badge reflects the change immediately.
+          this._refreshCreditPendingBadge();
         }),
         map(dto => this._dtoToCustomer(dto)),
         catchError(err => throwError(() => this._extractError(err))),
@@ -231,6 +212,8 @@ export class CustomerService {
           const updated = this._dtoToCustomer(dto);
           this.core._customers.update(list =>
             list.map(c => c.id === updated.id ? updated : c));
+
+          this._refreshCreditPendingBadge();
         }),
         map(dto => this._dtoToCustomer(dto)),
         catchError(err => throwError(() => this._extractError(err))),
@@ -238,17 +221,9 @@ export class CustomerService {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // LOCAL HELPERS (until Orders module is backend-migrated)
+  // LOCAL HELPERS
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Recomputes TotalDue for every customer from the live _orders signal.
-   * Called by BillingComponent after every order/payment mutation.
-   * This is intentionally local logic — the display value is derived from
-   * the orders that are already in memory. When the Orders module is
-   * migrated to the backend, this will be replaced by a fresh
-   * getCustomers() call which returns DB-authoritative TotalDue values.
-   */
   recomputeCustomerDues(): void {
     const orders = this.core._orders();
     this.core._customers.update(customers =>
@@ -259,12 +234,13 @@ export class CustomerService {
           .reduce((sum, o) => sum + o.balance, 0),
       }))
     );
+
+    // Keep the badge in sync with the recomputed local dues
+    const newTotal = this.core._customers()
+      .reduce((s, c) => s + c.totalDue, 0);
+    this.core._totalCreditPendingOverride.set(newTotal);
   }
 
-  /**
-   * Returns the effective selling price for a product/customer pair.
-   * Pure UI logic — no backend call needed.
-   */
   getEffectivePrice(product: Product, customer: Customer): number {
     if (!customer.usePriceFromProduct && customer.defaultPriceProductId === product.id) {
       return customer.defaultPricePerCan;
@@ -272,12 +248,26 @@ export class CustomerService {
     return product.sellingPrice;
   }
 
-  // Signal accessor
   getCustomersSignal() { return this.core._customers; }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PRIVATE — DTO ↔ model conversion
+  // PRIVATE
   // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Re-fetches /api/customers/summary and writes totalDueAmount into the
+   * override signal. Fire-and-forget — errors are non-critical since the
+   * badge will self-correct on the next navigation.
+   *
+   * Called after every mutation that can affect customer dues.
+   * Uses getCustomerSummary() which already has the tap to set the override,
+   * so no duplicate logic here.
+   */
+  private _refreshCreditPendingBadge(): void {
+    this.getCustomerSummary().subscribe({
+      error: () => { /* non-critical */ },
+    });
+  }
 
   private _dtoToCustomer(dto: CustomerDto): Customer {
     return {

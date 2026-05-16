@@ -111,6 +111,8 @@ export interface PagedResult<T> {
   items:        T[];
   totalCount:   number;
   totalAmount?: number;
+  totalStockUnits?: number;
+  lowStockCount?: number;
   page:         number;
   pageSize:     number;
   totalPages:   number;

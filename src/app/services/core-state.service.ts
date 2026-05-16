@@ -116,10 +116,10 @@ export class CoreStateService {
   // ── Products ──────────────────────────────────────────────────────────────
   readonly _products = signal<Product[]>([]);
   readonly products       = this._products.asReadonly();
-  readonly lowStockItems  = computed(() =>
-    this._products().filter(p => p.active && p.currentStock <= p.minStockAlert)
-  );
-  readonly lowStockCount  = computed(() => this.lowStockItems().length);
+  // readonly lowStockItems  = computed(() =>
+  //   this._products().filter(p => p.active && p.currentStock <= p.minStockAlert)
+  // );
+  // readonly lowStockCount  = computed(() => this.lowStockItems().length);
   readonly activeProducts = computed(() => this._products().filter(p => p.active));
 
   readonly _productSummaryOverride = signal<{
@@ -135,9 +135,9 @@ export class CoreStateService {
   // ── Customers ─────────────────────────────────────────────────────────────
   readonly _customers = signal<Customer[]>([]);
   readonly customers          = this._customers.asReadonly();
-  readonly totalCreditPending = computed(() =>
-    this._customers().reduce((s, c) => s + c.totalDue, 0)
-  );
+  // readonly totalCreditPending = computed(() =>
+  //   this._customers().reduce((s, c) => s + c.totalDue, 0)
+  // );
 
   // ── Orders ────────────────────────────────────────────────────────────────
   readonly _orders = signal<Order[]>([]);
@@ -171,4 +171,23 @@ export class CoreStateService {
   });
 
   readonly todaySummary = this._todaySummaryOverride.asReadonly();
+
+  // Override signals — set by shell/inventory via summary endpoints.
+  // null means "not yet loaded from summary; fall back to local computation".
+  readonly _lowStockCountOverride      = signal<number | null>(null);
+  readonly _totalCreditPendingOverride = signal<number | null>(null);
+
+  readonly lowStockItems = computed(() =>
+    this._products().filter(p => p.active && p.currentStock <= p.minStockAlert)
+  );
+
+  // Uses server-authoritative summary when available; falls back to local page slice.
+  readonly lowStockCount = computed(() =>
+    this._lowStockCountOverride() ?? this.lowStockItems().length
+  );
+
+  readonly totalCreditPending = computed(() =>
+    this._totalCreditPendingOverride() ??
+    this._customers().reduce((s, c) => s + c.totalDue, 0)
+  );
 }

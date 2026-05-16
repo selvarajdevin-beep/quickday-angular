@@ -278,4 +278,22 @@ export class SharedStateService {
   getExpenseReport(range?: DateRange)              { return this.reportSvc.getExpenseReport(range); }
   getProfitReport()                                { return this.reportSvc.getProfitReport(); }
   getPurchaseReport(p?: GetPurchaseReportParams)   { return this.reportSvc.getPurchaseReport(p); }
+
+  applyProductSummary(s: { lowStockCount: number }): void {
+    this.core._lowStockCountOverride.set(s.lowStockCount);
+  }
+
+  applyCustomerSummary(s: CustomerSummary): void {
+    this.core._totalCreditPendingOverride.set(s.totalDueAmount);
+  }
+  refreshNotifications(): void {
+    this.getProductSummary().subscribe({
+      next:  s => this.applyProductSummary(s),
+      error: () => {},
+    });
+    this.getCustomerSummary().subscribe({
+      next:  s => this.applyCustomerSummary(s),
+      error: () => {},
+    });
+  }
 }

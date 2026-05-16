@@ -260,7 +260,6 @@ export class BillingComponent implements OnInit {
     this.productSearch$.next('');
 
     // ── Orders search box — debounced 400ms ───────────────
-    // Fires loadOrders() after user stops typing, resetting to page 1.
     this.ordersSearch$.pipe(
       debounceTime(400),
       distinctUntilChanged(),
@@ -271,8 +270,7 @@ export class BillingComponent implements OnInit {
   }
 
   // ══════════════════════════════════════════════════════════
-  // loadOrders — THE FIX
-  // Now passes: status, search, date range, page, pageSize
+  // loadOrders
   // ══════════════════════════════════════════════════════════
   loadOrders(callback?: () => void): void {
     const df = this.ordersDateFilter();
@@ -283,10 +281,7 @@ export class BillingComponent implements OnInit {
     else if (df === 'week')   { from = this.daysAgoStr(7); to = this.todayStr(); }
     else if (df === 'custom') { from = this.ordersDateFrom() || undefined; to = this.ordersDateTo() || undefined; }
 
-    // Status: only pass to API when not 'all' (service already handles omission)
     const status = this.ordersStatus();
-
-    // Search: trimmed, empty string means "no filter"
     const search = this.ordersSearch().trim() || undefined;
 
     this.svc.getOrders({
@@ -309,20 +304,17 @@ export class BillingComponent implements OnInit {
     });
   }
 
-  // ── Called by status segment buttons ──────────────────────
   onStatusFilter(status: 'all' | 'Paid' | 'Credit' | 'Partial'): void {
     this.ordersStatus.set(status);
     this.ordersPage.set(1);
     this.loadOrders();
   }
 
-  // ── Called by search input (ngModelChange) ────────────────
   onSearchInput(value: string): void {
     this.ordersSearch.set(value);
-    this.ordersSearch$.next(value);   // debounced → loadOrders()
+    this.ordersSearch$.next(value);
   }
 
-  // ── Called by date filter buttons ─────────────────────────
   onDateFilterChange(mode: DateFilterMode): void {
     this.ordersDateFilter.set(mode);
     if (mode !== 'custom') { this.ordersDateFrom.set(''); this.ordersDateTo.set(''); }
@@ -330,13 +322,11 @@ export class BillingComponent implements OnInit {
     this.loadOrders();
   }
 
-  // ── Called by custom date pickers ─────────────────────────
   onOrderFilter(): void {
     this.ordersPage.set(1);
     this.loadOrders();
   }
 
-  // ── Product search handlers ────────────────────────────────
   onProductRowSearch(query: string): void {
     this.productSearch$.next(query);
   }
@@ -640,7 +630,7 @@ export class BillingComponent implements OnInit {
   openInvoice(order: Order): void { this.invoiceOrder.set(order); this.viewOrderDetail.set(null); }
   closeInvoice(): void { this.invoiceOrder.set(null); }
 
-  fmtInvoiceDate(d: Date): string {
+  fmtInvoiceDate(d: Date | string): string {
     const s = this.settings() as any;
     const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
     if (s?.invoiceShowTime) { opts.hour = '2-digit'; opts.minute = '2-digit'; }
@@ -653,11 +643,111 @@ export class BillingComponent implements OnInit {
     return order.status === 'Paid' ? order.grandTotal : order.balance;
   }
 
+  // ══════════════════════════════════════════════════════════
+  // FIX 3: printInvoice — mobile-friendly print
+  // Mobile browsers block window.open(), so on mobile we inject
+  // a temporary @media print stylesheet and call window.print()
+  // directly. Desktop still uses the popup window approach.
+  // ══════════════════════════════════════════════════════════
   printInvoice(): void {
     const el = document.getElementById('inv-print-area');
     if (!el) return;
+
+    // Detect mobile device
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // Mobile: inject print CSS into current document, print, then clean up
+      const styleId = 'inv-mobile-print-style';
+      let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = `
+        @media print {
+          body > * { display: none !important; }
+          .inv-mask {
+            display: block !important;
+            position: static !important;
+            background: none !important;
+            padding: 0 !important;
+            backdrop-filter: none !important;
+          }
+          .inv-shell {
+            max-height: none !important;
+            box-shadow: none !important;
+            background: #fff !important;
+            border-radius: 0 !important;
+            animation: none !important;
+            overflow: visible !important;
+            display: block !important;
+          }
+          .inv-toolbar { display: none !important; }
+          .inv-preview-area {
+            padding: 0 !important;
+            background: #fff !important;
+            overflow: visible !important;
+          }
+          #inv-print-area {
+            box-shadow: none !important;
+            border-radius: 0 !important;
+          }
+          .inv-doc { padding: 16px 20px !important; }
+          .inv-header {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: flex-start !important;
+            gap: 16px !important;
+            margin-bottom: 16px !important;
+          }
+          .inv-brand { flex: 1 !important; min-width: 0 !important; }
+          .inv-brand-icon {
+            width: 40px !important;
+            height: 40px !important;
+            font-size: 18px !important;
+            border-radius: 9px !important;
+          }
+          .inv-business-name { font-size: 15px !important; }
+          .inv-meta {
+            text-align: right !important;
+            flex-shrink: 0 !important;
+            max-width: none !important;
+          }
+          .inv-meta-badge {
+            font-size: 10px !important;
+            margin-bottom: 6px !important;
+          }
+          .inv-meta-table { margin-left: auto !important; }
+          .imt-lbl { text-align: right !important; font-size: 10px !important; }
+          .imt-val  { text-align: right !important; font-size: 12px !important; }
+          .inv-items-table tbody tr:hover { background: transparent !important; }
+          .inv-totals { justify-content: flex-end !important; }
+          .inv-totals-inner { width: 220px !important; }
+          .inv-footer {
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: flex-end !important;
+          }
+          .inv-footer-right { text-align: right !important; flex-shrink: 0 !important; }
+          .inv-sig-line { margin-left: auto !important; }
+          @page { margin: 8mm; size: A4; }
+        }
+      `;
+      window.print();
+      // Clean up after print dialog closes
+      setTimeout(() => {
+        if (styleEl) styleEl.textContent = '';
+      }, 1500);
+      return;
+    }
+
+    // Desktop: open popup window
     const invoiceHtml = el.outerHTML;
-    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style')).map(s => s.outerHTML).join('\n');
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(s => s.outerHTML).join('\n');
     const printWin = window.open('', '_blank', 'width=900,height=700');
     if (!printWin) { this.printFallback(); return; }
     printWin.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice</title>${styles}<style>
@@ -764,8 +854,28 @@ export class BillingComponent implements OnInit {
     return ({ Paid: 'inv-st-paid', Credit: 'inv-st-credit', Partial: 'inv-st-partial' } as any)[status] ?? '';
   }
 
-  timeAgo(date: Date): string {
-    const diff = Date.now() - new Date(date).getTime();
+  // ══════════════════════════════════════════════════════════
+  // FIX 1: timeAgo — correct timezone handling
+  // Dates from the server may come as strings without a timezone
+  // suffix (e.g. "2026-05-14T02:53:00" instead of "...Z").
+  // Without the Z, JavaScript treats them as LOCAL time, which
+  // causes the offset error (e.g. IST = UTC+5:30 → shows 5h ago).
+  // Solution: if the string has no timezone info, append 'Z' to
+  // parse it as UTC, matching how the server stores/returns it.
+  // ══════════════════════════════════════════════════════════
+  timeAgo(date: Date | string): string {
+    let d: Date;
+    if (typeof date === 'string') {
+      // Check if string already has timezone info (Z, +, or -)
+      const hasTimezone = date.endsWith('Z') ||
+                          /[+-]\d{2}:\d{2}$/.test(date) ||
+                          /[+-]\d{4}$/.test(date);
+      d = new Date(hasTimezone ? date : date + 'Z');
+    } else {
+      d = date;
+    }
+
+    const diff = Date.now() - d.getTime();
     const m = Math.floor(diff / 60000);
     if (m < 1)  return 'Just now';
     if (m < 60) return `${m}m ago`;
@@ -774,7 +884,7 @@ export class BillingComponent implements OnInit {
     return `${Math.floor(h / 24)}d ago`;
   }
 
-  fmtDate(d: Date): string {
+  fmtDate(d: Date | string): string {
     return new Date(d).toLocaleDateString('en-IN', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit',

@@ -171,15 +171,49 @@ export class ShellComponent implements OnInit {
    * Both are fire-and-forget; SharedStateService updates its internal
    * signals and Angular's computed() picks up the change automatically.
    */
+  // private _loadNotificationData(): void {
+  //   // Credit pending — lightweight summary row (1 DB row, fast)
+  //   this.shared.getCustomerSummary().subscribe({
+  //     error: e => console.warn('[Shell] getCustomerSummary error:', e),
+  //   });
+
+  //   // Low stock — product list (already cached by SharedStateService)
+  //   this.shared.getProducts().subscribe({
+  //     error: e => console.warn('[Shell] getProducts error:', e),
+  //   });
+  // }
+
+  // private _loadNotificationData(): void {
+  //   // Use the summary endpoint — returns aggregate across ALL customers,
+  //   // not just the current page. Apply totalDueAmount to the core signal.
+  //   this.shared.getCustomerSummary().subscribe({
+  //     next: summary => {
+  //       // Directly patch the core totalCreditPending via a synthetic customer
+  //       // list entry, OR expose a dedicated setter. Best: expose a setter.
+  //       this.shared.applyCustomerSummary(summary);
+  //     },
+  //     error: e => console.warn('[Shell] getCustomerSummary error:', e),
+  //   });
+
+  //   // Use the product summary endpoint — returns lowStockCount across ALL products.
+  //   this.shared.getProductSummary().subscribe({
+  //     next: summary => {
+  //       this.shared.applyProductSummary(summary);
+  //     },
+  //     error: e => console.warn('[Shell] getProductSummary error:', e),
+  //   });
+  // }
+
   private _loadNotificationData(): void {
-    // Credit pending — lightweight summary row (1 DB row, fast)
+    // Fetches aggregate totals across ALL rows — not just the current page.
     this.shared.getCustomerSummary().subscribe({
+      next:  s => this.shared.applyCustomerSummary(s),
       error: e => console.warn('[Shell] getCustomerSummary error:', e),
     });
 
-    // Low stock — product list (already cached by SharedStateService)
-    this.shared.getProducts().subscribe({
-      error: e => console.warn('[Shell] getProducts error:', e),
+    this.shared.getProductSummary().subscribe({
+      next:  s => this.shared.applyProductSummary(s),
+      error: e => console.warn('[Shell] getProductSummary error:', e),
     });
   }
 
